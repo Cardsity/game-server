@@ -65,10 +65,10 @@ std::optional<typename List::iterator> getItemByValue(List& l, T& what)
 	return std::nullopt;
 }
 
-template<typename T>
-bool hasTimePassed(clock_t start, T waitTime)
+template<typename T, typename W>
+bool hasTimePassed(T start, W waitTime)
 {
-	if ((clock() - start) > waitTime)
+	if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() > waitTime)
 		return true;
 	return false;
 }

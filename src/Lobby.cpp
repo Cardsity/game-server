@@ -384,7 +384,7 @@ void Lobby::runGameAsync()
 			sendGameUpdate();
 
 			linfo("ID ", this->id, ": Waiting for players to play");
-			auto start = clock();
+			auto start = std::chrono::high_resolution_clock::now();
 			shouldPlayerPlay = true;
 			while (!hasTimePassed(start, this->pickLimit))
 			{
@@ -432,7 +432,7 @@ void Lobby::runGameAsync()
 			}
 
 			linfo("ID ", this->id, ": Waiting for czar to pick");
-			start = clock();
+			start = std::chrono::high_resolution_clock::now();
 			shouldCzarPick = true;
 			while (!hasTimePassed(start, pickLimit))
 			{

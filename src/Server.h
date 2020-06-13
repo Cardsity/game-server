@@ -11,7 +11,8 @@
 #include "Logs.h"
 #include "Json.h"
 
-using wserver = websocketpp::server<websocketpp::config::asio>;
+using context_ptr = websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context>;
+using wserver = websocketpp::server<websocketpp::config::asio_tls>;
 using message_ptr = wserver::message_ptr;
 using hdl = websocketpp::connection_hdl;
 using websocketpp::frame::opcode::text;
@@ -33,7 +34,7 @@ public:
 		if (origin > 0)
 			if (connections->at(handle).lobbyId != origin)
 				return;
-		
+
 
 		json j = what;
 		if (requestId != "")
@@ -59,6 +60,7 @@ public:
 		server.set_open_handler(bind(&CAHServer::onConnect, this, _1));
 		server.set_close_handler(bind(&CAHServer::onDisconnect, this, _1));
 		server.set_message_handler(bind(&CAHServer::onMessage, this, _1, _2));
+		server.set_tls_init_handler(bind(&CAHServer::on_tls_init, this, _1));
 
 		server.set_pong_timeout(0);
 		server.set_close_handshake_timeout(0);
@@ -387,6 +389,26 @@ protected:
 		}
 	}
 #undef Is
+	context_ptr on_tls_init(hdl hdl) {
+		namespace asio = websocketpp::lib::asio;
+
+		context_ptr ctx = websocketpp::lib::make_shared<asio::ssl::context>(asio::ssl::context::tlsv1);
+		linfo("TLS Init called!");
+
+		try
+		{
+			ctx->set_options(boost::asio::ssl::context::default_workarounds |
+				boost::asio::ssl::context::no_sslv2 |
+				boost::asio::ssl::context::no_sslv3 |
+				boost::asio::ssl::context::single_dh_use);
+			ctx->use_certificate_chain_file("./cert/cert.pem");
+			ctx->use_private_key_file("./cert/priv.pem", boost::asio::ssl::context::pem);
+		}
+		catch (std::exception& e) {
+			lerror("Exception: ", e.what());
+		}
+		return ctx;
+	}
 };
 
 inline CAHServer server;

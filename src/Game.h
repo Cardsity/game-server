@@ -31,6 +31,15 @@ struct Deck
 	std::vector<BlackCard> blackCards;
 	std::string name;
 	uint id;
+
+	bool operator==(const std::string& o)
+	{
+		return o == std::to_string(id);
+	}
+	bool operator==(const Deck& o)
+	{
+		return o.id == this->id;
+	}
 };
 
 struct Player
@@ -106,6 +115,7 @@ struct Lobby
 	Status playCards(Connection, CardPlayRequest);
 	Status jokerRequest(Connection, JokerCardRequest);
 	
+	Status updateSettings(Connection, UpdateGameRequest);
 	Status kickPlayer(Connection, KickRequest);
 	Status startGame(Connection);
 

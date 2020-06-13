@@ -30,6 +30,30 @@ struct LoginRequest
 	}
 };
 
+struct UpdateGameRequest
+{
+	std::string password;
+
+	uint maxJokerRequests;
+	float pickLimit;
+	uint maxPlayers;
+	uint maxRounds;
+	uint maxPoints;
+
+	std::vector<std::string> decks;
+
+	static bool IsValid(json j)
+	{
+		if (j["password"].is_string() &&
+			j["pickLimit"].is_number() && j["maxPlayers"].is_number() &&
+			j["maxRounds"].is_number() && j["maxPoints"].is_number() &&
+			j["decks"].is_array() && j["maxJokerRequests"].is_number() &&
+			std::all_of(j["decks"].begin(), j["decks"].end(), [](const json& el) { return el.is_string(); }))
+			return true;
+		return false;
+	}
+};
+
 struct CreateGameRequest
 {
 	std::string name;

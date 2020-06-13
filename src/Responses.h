@@ -46,16 +46,19 @@ struct KickNotify
 };
 struct DeckInfo
 {
+	uint id;
 	std::string name;
 	DeckInfo() {}
 	DeckInfo(const Deck& d)
 	{
 		this->name = d.name;
+		this->id = d.id;
 	}
 	DeckInfo operator=(const Deck& o)
 	{
 		DeckInfo d;
 		d.name = o.name;
+		d.id = o.id;
 		return d;
 	}
 };

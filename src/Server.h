@@ -203,6 +203,7 @@ protected:
 					|| packet.maxRounds > 20 || packet.maxRounds < 5
 					|| packet.pickLimit > 5 || packet.pickLimit < 0.5
 					|| packet.maxJokerRequests < 0 || packet.maxJokerRequests > 10
+					|| packet.decks.size() > 10 || packet.decks.size() < 1
 					)
 				{
 					send(handle, Status{ "Invalid game settings!", false }, requestId);
@@ -221,10 +222,6 @@ protected:
 
 
 				Lobby lobby;
-				for (auto deck : packet.decks)
-				{
-					lobby.addDeck(deck);
-				}
 				lobby.id = ++idCounter;
 				lobby.name = packet.name;
 				lobby.password = packet.password;
@@ -233,6 +230,11 @@ protected:
 				lobby.maxPlayers = packet.maxPlayers;
 				lobby.maxPoints = packet.maxPoints;
 				lobby.maxJokerRequests = packet.maxJokerRequests;
+
+				for (auto deck : packet.decks)
+				{
+					lobby.addDeck(deck);
+				}
 
 				lobbies->insert({ lobby.id, lobby });
 				lobbies->at(lobby.id).forceConnect(con);
@@ -257,6 +259,22 @@ protected:
 				}
 				else
 					send(handle, response, requestId);
+				return;
+			}
+			if (Is(UpdateGameRequest))
+			{
+				auto packet = rpacket.get();
+				if (con.lobbyId <= 0)
+				{
+					send(handle, Status{ "You're not in a lobby", false }, requestId);
+					return;
+				}
+				if (lobbies->find(con.lobbyId) == lobbies->end())
+				{
+					send(handle, Status{ "Lobby not found!", false }, requestId);
+					return;
+				}
+				send(handle, lobbies->at(con.lobbyId).updateSettings(con, packet), requestId);
 				return;
 			}
 			if (Is(StartGameRequest))

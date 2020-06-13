@@ -44,7 +44,7 @@ Status Lobby::jokerRequest(Connection con, JokerCardRequest request)
 		return Status{ "Not ingame", false };
 	if (!messageValidation(request.text))
 		return Status{ "Invalid text", false };
-	
+
 	auto player = sfgetItemByValue<Player, std::vector<Player>>(safePlayerCpy, con);
 	if (!player.has_value())
 		return Status{ "Invalid player", false };
@@ -171,6 +171,8 @@ Status Lobby::startGame(Connection con)
 		return Status{ "You're not host!", false };
 	if (decks->size() < 1)
 		return Status{ "Too few decks", false };
+	if (decks->size() > 10)
+		return Status{ "Too many decks", false };
 
 	this->runGameAsync();
 	return Status{ "Starting game!", true };
@@ -241,8 +243,57 @@ Status Lobby::disconnect(Connection con)
 
 	return Status{ "Disconnected from lobby", true };
 }
+Status Lobby::updateSettings(Connection con, UpdateGameRequest request)
+{
+	if (isIngame)
+		return Status{ "Cant update settings right now", false };
+	if (!isValid)
+		return Status{ "Invalid lobby", false };
+	if (livePlayers->size() <= 0)
+		return Status{ "Wtf?", false };
+	if (livePlayers->at(0) != con)
+		return Status{ "You're not host!", false };
+	if (
+		request.maxPlayers > 15 || request.maxPlayers < 3
+		|| request.maxPoints > 25 || request.maxPoints < 5
+		|| request.maxRounds > 20 || request.maxRounds < 5
+		|| request.pickLimit > 5 || request.pickLimit < 0.5
+		|| request.maxJokerRequests < 0 || request.maxJokerRequests > 10
+		|| request.decks.size() > 10 || request.decks.size() < 1
+		)
+		return Status{ "Invalid game settings!", false };
+
+	this->maxJokerRequests = request.maxJokerRequests;
+	this->maxPlayers = request.maxPlayers;
+	this->maxRounds = request.maxRounds;
+	this->pickLimit = request.pickLimit * 60'000;
+	this->maxPoints = request.maxPoints;
+	this->password = request.password;
+
+	decks->erase(std::remove_if(decks->begin(), decks->end(), [request](Deck& d)
+	{
+		if (!LContains<std::string>(request.decks, std::to_string(d.id)))
+		{
+			return true;
+		}
+		return false;
+	}), decks->end());
+
+	for (auto deck : request.decks)
+	{
+		if (!sfLContains<Deck>(decks, deck))
+		{
+			addDeck(deck);
+		}
+	}
+
+	sendGameUpdate();
+	return Status{ "Updated!", true };
+}
 void Lobby::addDeck(std::string id)
 {
+	if (this->decks->size() >= 10) return;
+	if (sfLContains<Deck>(decks, id)) return;
 	linfo("ID ", this->id, ": Adding Deck ", id);
 	auto res = cpr::Get(
 		cpr::Url{ "http://127.0.0.1:8020/deck/" + id + "/json" }
@@ -310,7 +361,7 @@ void Lobby::runGameAsync()
 				(*action)(safePlayerCpy);
 			}
 			playerChangeStack->clear();
-			if (safePlayerCpy->size() < 3) 
+			if (safePlayerCpy->size() < 3)
 				break;
 
 			linfo("ID ", this->id, ": Setting Czar and Blackcard");
@@ -357,7 +408,7 @@ void Lobby::runGameAsync()
 				{
 					totalPicked += player->playedCards.size();
 				}
-				if (totalPicked == blackCard.blanks * (safePlayerCpy->size() - 1))
+				if (totalPicked >= blackCard.blanks * (safePlayerCpy->size() - 1))
 					break;
 				std::this_thread::sleep_for(std::chrono::milliseconds(500));
 			}
@@ -392,7 +443,7 @@ void Lobby::runGameAsync()
 				}
 				playerChangeStack->clear();
 
-				if (!sfLContains<Player>(livePlayers, czar))
+				if (!sfLContains<Player>(safePlayerCpy, czar))
 					break;
 				if (czarPicked != 0)
 					break;
@@ -401,13 +452,19 @@ void Lobby::runGameAsync()
 			shouldCzarPick = false;
 			while ((czarPicked == 0 || czarPicked == czar.owner.id) && livePlayers->size() > 0)
 			{
-				czarPicked = sfgetRandomFromList<Player>(safePlayerCpy)->owner.id;
+				auto randomPlayer = sfgetRandomFromList<Player>(safePlayerCpy);
+				if (!randomPlayer.has_value())
+					break;
+				czarPicked = randomPlayer->owner.id;
 			}
 
 			auto winner = sfgetItemByValue<Player, std::vector<Player>>(safePlayerCpy, czarPicked);
-			(*winner)->points += blackCard.blanks;
+			if (winner.has_value())
+			{
+				(*winner)->points += blackCard.blanks;
+				wonCards->push_back(std::make_tuple((*winner)->owner, blackCard, (*winner)->playedCards));
+			}
 
-			wonCards->push_back(std::make_tuple((*winner)->owner, blackCard, (*winner)->playedCards));
 
 			CzarPickNotify notify{ czarPicked };
 			foreach(player, safePlayerCpy)
@@ -451,12 +508,12 @@ void Lobby::runGameAsync()
 				winner = *player;
 		}
 
-		GameEnd packet( winner, wonCards );
+		GameEnd packet(winner, wonCards);
 		foreach(player, safePlayerCpy)
 		{
 			server.send(player->owner.hdl, packet, "", id);
 		}
-		
+
 		this->currentRound = 0;
 		sendGameUpdate();
 

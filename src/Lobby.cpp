@@ -296,7 +296,7 @@ void Lobby::addDeck(std::string id)
 	if (sfLContains<Deck>(decks, id)) return;
 	linfo("ID ", this->id, ": Adding Deck ", id);
 	auto res = cpr::Get(
-		cpr::Url{ "http://127.0.0.1:8020/deck/" + id + "/json" }
+		cpr::Url{ "http://cds:8020/deck/" + id + "/json" }
 	);
 	if (res.status_code == 200)
 	{

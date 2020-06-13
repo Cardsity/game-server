@@ -313,6 +313,10 @@ void Lobby::addDeck(std::string id)
 			this->decks->push_back(deck);
 		}
 	}
+	else
+	{
+		lerror(this->id, ": Deck fetching failed: ", id, " fetch returned: ", res.status_code, " raw: ", res.text);
+	}
 }
 
 void Lobby::runGameAsync()

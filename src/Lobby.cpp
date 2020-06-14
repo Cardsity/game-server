@@ -362,11 +362,14 @@ void Lobby::runGameAsync()
 			linfo("ID ", this->id, ": Setting Czar and Blackcard");
 			czarPicked = 0;
 			blackCard = *getRandomFromList(sfgetRandomFromList<Deck>(decks)->blackCards);
+			czar = *sfgetRandomFromList<Player>(safePlayerCpy);
+			
 			while (czar == lastCzar)
 			{
 				czar = *sfgetRandomFromList<Player>(safePlayerCpy);
 			}
 			lastCzar = czar;
+
 			linfo("ID ", this->id, ": Giving each player ", blackCard.blanks, " Cards");
 			foreach(player, safePlayerCpy)
 			{
@@ -424,7 +427,7 @@ void Lobby::runGameAsync()
 
 			linfo("ID ", this->id, ": Revealing Cards");
 			RevealCards reveal;
-			for(auto player : sfShuffle(safePlayerCpy))
+			for (auto player : sfShuffle(safePlayerCpy))
 			{
 				reveal.cards.insert(reveal.cards.end(), player.playedCards.begin(), player.playedCards.end());
 			}

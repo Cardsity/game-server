@@ -163,7 +163,7 @@ protected:
 					send(handle, Status{ "Logged out", true }, requestId);
 					return;
 				}
-				send(handle, Status{ "Well then stay logged in", true }, requestId);
+				send(handle, Status{ "Well then stay logged in", false }, requestId);
 				return;
 			}
 			if (Is(LobbyListRequest))

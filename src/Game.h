@@ -101,6 +101,7 @@ struct Lobby
 	/*        */
 	
 	Player czar;
+	Player lastCzar;
 	std::atomic<uint> czarPicked = 0;
 
 	BlackCard blackCard;

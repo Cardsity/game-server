@@ -4,9 +4,13 @@
 #include <thread>
 #include <vector>
 #include <time.h>
+#include <random>
 #include <map>
 
 #define foreach(var, list) for (auto var = list->begin(); var != list->end(); ++var)
+
+inline std::random_device rd;
+inline std::mt19937 mt(rd());
 
 template <typename T>
 inline void RunAsync(T lambda)
@@ -76,15 +80,17 @@ bool hasTimePassed(T start, W waitTime)
 template <typename T>
 std::optional<T> getRandomFromList(std::vector<T> vec)
 {
+	std::uniform_int_distribution<int> ran(0, vec.size());
 	if (vec.size() > 0)
-		return vec.at(rand() % vec.size());
+		return vec.at(ran(mt));
 	return std::nullopt;
 }
 template <typename T, typename Vec>
 std::optional<T> sfgetRandomFromList(Vec vec)
 {
+	std::uniform_int_distribution<int> ran(0, vec->size());
 	if (vec->size() > 0)
-		return vec->at(rand() % vec->size());
+		return vec->at(ran(mt));
 	return std::nullopt;
 }
 

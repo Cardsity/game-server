@@ -371,11 +371,16 @@ void Lobby::runGameAsync()
 			linfo("ID ", this->id, ": Setting Czar and Blackcard");
 			czarPicked = 0;
 			blackCard = *getRandomFromList(sfgetRandomFromList<Deck>(decks)->blackCards);
-			czar = *sfgetRandomFromList<Player>(safePlayerCpy);
+			while (czar == lastCzar)
+			{
+				czar = *sfgetRandomFromList<Player>(safePlayerCpy);
+			}
+			lastCzar = czar;
 			linfo("ID ", this->id, ": Giving each player ", blackCard.blanks, " Cards");
 			foreach(player, safePlayerCpy)
 			{
 				player->playedCards.clear();
+				if (*player == czar) continue;
 				for (int i = 0; blackCard.blanks > i; i++)
 				{
 					auto randomDeck = sfgetRandomFromList<Deck>(decks);

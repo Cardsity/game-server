@@ -80,7 +80,7 @@ bool hasTimePassed(T start, W waitTime)
 template <typename T>
 std::optional<T> getRandomFromList(std::vector<T> vec)
 {
-	std::uniform_int_distribution<int> ran(0, vec.size());
+	std::uniform_int_distribution<int> ran(0, vec.size() - 1);
 	if (vec.size() > 0)
 		return vec.at(ran(mt));
 	return std::nullopt;
@@ -88,7 +88,7 @@ std::optional<T> getRandomFromList(std::vector<T> vec)
 template <typename T, typename Vec>
 std::optional<T> sfgetRandomFromList(Vec vec)
 {
-	std::uniform_int_distribution<int> ran(0, vec->size());
+	std::uniform_int_distribution<int> ran(0, vec->size() - 1);
 	if (vec->size() > 0)
 		return vec->at(ran(mt));
 	return std::nullopt;

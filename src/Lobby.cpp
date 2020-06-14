@@ -325,12 +325,6 @@ void Lobby::runGameAsync()
 	isIngame = true;
 	RunAsync([&]
 	{
-		ldebug("ID ", this->id, ": Seeding Random because it doesn't behave as I expected it to");
-#ifdef _WIN32
-		srand((unsigned)time(NULL) * _getpid() + GetTickCount());
-#else
-		srand((unsigned)time(NULL) * getpid() + GetTickCountMs());
-#endif
 		linfo("ID ", this->id, ": Resetting Lobby and Player Stats");
 		this->currentRound = 0;
 		foreach(action, playerChangeStack)

@@ -1,10 +1,11 @@
 #pragma once
 #include "safe_ptr.h"
+#include <algorithm>
 #include <optional>
+#include <random>
 #include <thread>
 #include <vector>
 #include <time.h>
-#include <random>
 #include <map>
 
 #define foreach(var, list) for (auto var = list->begin(); var != list->end(); ++var)
@@ -67,6 +68,14 @@ std::optional<typename List::iterator> getItemByValue(List& l, T& what)
 	if (pIt != l.end())
 		return pIt;
 	return std::nullopt;
+}
+
+template <typename List>
+List sfShuffle(sf::safe_ptr<List> list)
+{
+	List copy(list->begin(), list->end());
+	std::shuffle(std::begin(copy), std::end(copy), mt);
+	return copy;
 }
 
 template<typename T, typename W>

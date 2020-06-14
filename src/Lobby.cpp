@@ -325,20 +325,17 @@ void Lobby::runGameAsync()
 	isIngame = true;
 	RunAsync([&]
 	{
-		linfo("ID ", this->id, ": Resetting Lobby and Player Stats");
-		this->currentRound = 0;
+		linfo("ID ", this->id, ": Starting new game!");
 		foreach(action, playerChangeStack)
 		{
 			(*action)(safePlayerCpy);
 		}
 		playerChangeStack->clear();
+
+		linfo("ID ", this->id, ": Giving players random cards!");
 		foreach(player, safePlayerCpy)
 		{
-			player->playedCards.clear();
 			player->jokerRequests = maxJokerRequests;
-			player->hand.clear();
-			player->points = 0;
-
 			for (int i = 0; 10 > i; i++)
 			{
 				auto randomDeck = sfgetRandomFromList<Deck>(decks);
@@ -374,12 +371,14 @@ void Lobby::runGameAsync()
 			foreach(player, safePlayerCpy)
 			{
 				player->playedCards.clear();
-				if (*player == czar) continue;
-				for (int i = 0; blackCard.blanks > i; i++)
+				if (*player != czar)
 				{
-					auto randomDeck = sfgetRandomFromList<Deck>(decks);
-					auto whiteCard = getRandomFromList(randomDeck->whiteCards);
-					player->addCard(whiteCard->text);
+					for (int i = 0; blackCard.blanks > i; i++)
+					{
+						auto randomDeck = sfgetRandomFromList<Deck>(decks);
+						auto whiteCard = getRandomFromList(randomDeck->whiteCards);
+						player->addCard(whiteCard->text);
+					}
 				}
 				HandUpdate newHand{ player->hand, false, player->jokerRequests };
 				server.send(player->owner.hdl, newHand, "", id);
@@ -425,9 +424,9 @@ void Lobby::runGameAsync()
 
 			linfo("ID ", this->id, ": Revealing Cards");
 			RevealCards reveal;
-			foreach(player, safePlayerCpy)
+			for(auto player : sfShuffle(safePlayerCpy))
 			{
-				reveal.cards.insert(reveal.cards.end(), player->playedCards.begin(), player->playedCards.end());
+				reveal.cards.insert(reveal.cards.end(), player.playedCards.begin(), player.playedCards.end());
 			}
 			foreach(player, safePlayerCpy)
 			{
@@ -517,6 +516,13 @@ void Lobby::runGameAsync()
 			server.send(player->owner.hdl, packet, "", id);
 		}
 
+		linfo("ID ", this->id, ": Resetting Lobby and Player Stats");
+		foreach(player, safePlayerCpy)
+		{
+			player->playedCards.clear();
+			player->hand.clear();
+			player->points = 0;
+		}
 		this->currentRound = 0;
 		sendGameUpdate();
 

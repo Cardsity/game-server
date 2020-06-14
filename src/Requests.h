@@ -176,7 +176,7 @@ struct LogoutRequest
 	bool confirmLogout;
 	static bool IsValid(json j)
 	{
-		if (j["confirmLeave"].is_boolean())
+		if (j["confirmLogout"].is_boolean())
 			return true;
 		return false;
 	}

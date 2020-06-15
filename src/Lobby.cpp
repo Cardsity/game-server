@@ -404,6 +404,7 @@ void Lobby::runGameAsync()
 				playerActionStack->clear();
 				foreach(action, playerChangeStack)
 				{
+					ldebug("ID ", this->id, ": Fetching Player Changes");
 					(*action)(safePlayerCpy);
 					sendGameUpdate();
 				}
@@ -414,8 +415,13 @@ void Lobby::runGameAsync()
 				{
 					totalPicked += player->playedCards.size();
 				}
-				if (totalPicked >= blackCard.blanks * (safePlayerCpy->size() - 1))
+
+				const uint expectedToPick = sfLContains<Player>(safePlayerCpy, czar) ? safePlayerCpy->size() - 1 : safePlayerCpy->size();
+				if (totalPicked >= blackCard.blanks * expectedToPick)
+				{
+					linfo("ID ", this->id, ": Everyone picked!");
 					break;
+				}
 				std::this_thread::sleep_for(std::chrono::milliseconds(500));
 			}
 			shouldPlayerPlay = false;
@@ -423,7 +429,10 @@ void Lobby::runGameAsync()
 			foreach(player, safePlayerCpy)
 			{
 				if (czar != *player && player->playedCards.size() != blackCard.blanks)
+				{
+					linfo("ID ", this->id, ":Auto-Playing for: ", player->owner.name);
 					player->autoPlay(blackCard.blanks);
+				}
 			}
 
 			linfo("ID ", this->id, ": Revealing Cards");
@@ -521,7 +530,7 @@ void Lobby::runGameAsync()
 		}
 
 		linfo("ID ", this->id, ": Resetting Lobby and Player Stats");
-		foreach(player, safePlayerCpy)
+		foreach(player, livePlayers)
 		{
 			player->playedCards.clear();
 			player->hand.clear();
@@ -529,6 +538,9 @@ void Lobby::runGameAsync()
 		}
 		this->currentRound = 0;
 		sendGameUpdate();
+
+		playerChangeStack->clear();
+		playerActionStack->clear();
 
 		linfo("ID ", this->id, ": Exiting game loop");
 		isIngame = false;

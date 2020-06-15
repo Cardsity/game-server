@@ -397,6 +397,7 @@ void Lobby::runGameAsync()
 				{
 					foreach(player, safePlayerCpy)
 					{
+						ldebug("ID ", this->id, ": Fetching Player Actions");
 						(*change)(player);
 					}
 				}

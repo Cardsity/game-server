@@ -43,7 +43,18 @@ public:
 			j["success"] = true;
 
 		ldebug("Sending Packet: ", j.dump(), " (Origin: ", origin, ")");
-		server.send(handle, j.dump(), text);
+		try
+		{
+			server.send(handle, j.dump(), text);
+		}
+		catch (websocketpp::exception e)
+		{
+			lerror("Websocket Exception: ", e.what());
+		}
+		catch (...)
+		{
+			lerror("Unknown exception");
+		}
 	}
 	void run()
 	{

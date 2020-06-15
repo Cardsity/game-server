@@ -1,4 +1,3 @@
-#pragma once
 #include "Game.h"
 #include "Utils.h"
 #include <cpr/cpr.h>

@@ -430,7 +430,7 @@ void Lobby::runGameAsync()
 			{
 				if (czar != *player && player->playedCards.size() != blackCard.blanks)
 				{
-					linfo("ID ", this->id, ":Auto-Playing for: ", player->owner.name);
+					linfo("ID ", this->id, ": Auto-Playing for: ", player->owner.name);
 					player->autoPlay(blackCard.blanks);
 				}
 			}

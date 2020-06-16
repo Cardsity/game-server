@@ -332,9 +332,12 @@ void Lobby::runGameAsync()
 		}
 		playerChangeStack->clear();
 
-		linfo("ID ", this->id, ": Giving players random cards!");
+		linfo("ID ", this->id, ": Giving players random cards and resetting their stats!");
 		foreach(player, safePlayerCpy)
 		{
+			player->points = 0;
+			player->hand.clear();
+			player->playedCards.clear();
 			player->jokerRequests = maxJokerRequests;
 			for (int i = 0; 10 > i; i++)
 			{
@@ -532,8 +535,6 @@ void Lobby::runGameAsync()
 		linfo("ID ", this->id, ": Resetting Lobby and Player Stats");
 		foreach(player, livePlayers)
 		{
-			player->playedCards.clear();
-			player->hand.clear();
 			player->points = 0;
 		}
 		this->currentRound = 0;

@@ -317,17 +317,17 @@ void Lobby::addDeck(std::string id)
 
 	futures.push_back(std::async([&](std::string id)
 	{
-		linfo("ID ", this->id, ": Adding Deck ", id);
+		linfo(this->id, ": Adding Deck ", id);
 		auto res = cpr::Get(
 			cpr::Url{ "https://cds:8020/deck/" + id + "/json" }
 		);
 		if (res.status_code == 200)
 		{
+			linfo(this->id, ": Deck ", id, " returned 200 OK!");
 			auto js = UnsafeJson::getUnsafeJson(res.text);
-			linfo("Deck ", id, " returned 200 OK!");
 			if (js.valid)
 			{
-				linfo("Deck ", id, " json is valid!");
+				linfo(this->id, ": Deck ", id, " json is valid!");
 				auto& j = js.json;
 
 				Deck deck;
@@ -338,11 +338,17 @@ void Lobby::addDeck(std::string id)
 				decks->push_back(deck);
 				sendGameUpdate();
 			}
+			else
+			{
+				lerror(this->id, ": Deck ", id, " json is invalid!");
+			}
 		}
 		else
 		{
 			lerror(this->id, ": Deck fetching failed: ", id, " fetch returned: ", res.status_code, " raw: ", res.text);
 		}
+
+		linfo(this->id, ": Deck fetching for ", id, " finished!");
 	}, id));
 }
 

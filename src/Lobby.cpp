@@ -14,7 +14,7 @@ void Lobby::sendGameUpdate()
 	LobbyStatus packet(*this);
 
 	std::vector<Player> safeLivePlayers(livePlayers->begin(), livePlayers->end());
-	for(auto player : safeLivePlayers)
+	for (auto player : safeLivePlayers)
 	{
 		server.send(player.owner.hdl, packet, "", id);
 	}
@@ -314,18 +314,20 @@ void Lobby::addDeck(std::string id)
 {
 	if (this->decks->size() >= 10) return;
 	if (sfLContains<Deck>(decks, id)) return;
-	linfo("ID ", this->id, ": Adding Deck ", id);
 
 	futures.push_back(std::async([&](std::string id)
 	{
+		linfo("ID ", this->id, ": Adding Deck ", id);
 		auto res = cpr::Get(
-			cpr::Url{ "http://cds:8020/deck/" + id + "/json" }
+			cpr::Url{ "https://cds:8020/deck/" + id + "/json" }
 		);
 		if (res.status_code == 200)
 		{
 			auto js = UnsafeJson::getUnsafeJson(res.text);
+			linfo("Deck ", id, " returned 200 OK!");
 			if (js.valid)
 			{
+				linfo("Deck ", id, " json is valid!");
 				auto& j = js.json;
 
 				Deck deck;

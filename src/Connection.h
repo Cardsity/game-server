@@ -9,8 +9,8 @@ struct Connection
 {
 	uint id;
 	handle hdl; //SERIALIZEPRIV
-	uint lobbyId;
-	bool loggedIn; //SERIALIZEPRIV
+	uint lobbyId = 0;
+	bool loggedIn = false; //SERIALIZEPRIV
 	std::string name;
 	std::string color;
 

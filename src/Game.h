@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <atomic>
+#include <future>
 #include "Requests.h"
 #include "safe_ptr.h"
 #include <functional>
@@ -78,6 +79,10 @@ struct Player
 	{
 		return this->owner == o;
 	}
+	bool isValid()
+	{
+		return owner.loggedIn && owner.name.length() > 0;
+	}
 	Player() {}
 	Player(const Connection& o)
 	{
@@ -92,6 +97,8 @@ struct Lobby
 	std::atomic<bool> isValid = true;
 
 	/*Settings*/
+	bool winnerBecomesCzar;
+	bool jokerCardsToDeck;
 	uint maxJokerRequests;
 	std::string password;
 	float pickLimit;
@@ -102,6 +109,7 @@ struct Lobby
 	
 	Player czar;
 	Player lastCzar;
+	Player lastWinner;
 	std::atomic<uint> czarPicked = 0;
 
 	BlackCard blackCard;
@@ -151,6 +159,7 @@ struct Lobby
 	}
 private:
 	std::atomic<bool> isIngame = false;
+	std::vector<std::future<void>> futures;
 	std::atomic<bool> shouldCzarPick = false;
 	std::atomic<bool> shouldPlayerPlay = false;
 	sf::safe_ptr<std::vector<Player>> safePlayerCpy;

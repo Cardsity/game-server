@@ -35,7 +35,6 @@ public:
 			if (connections->at(handle).lobbyId != origin)
 				return;
 
-
 		json j = what;
 		if (requestId != "")
 			j["requestId"] = requestId;

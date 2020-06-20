@@ -34,6 +34,8 @@ struct UpdateGameRequest
 {
 	std::string password;
 
+	bool winnerBecomesCzar;
+	bool jokerCardsToDeck;
 	uint maxJokerRequests;
 	float pickLimit;
 	uint maxPlayers;
@@ -48,6 +50,7 @@ struct UpdateGameRequest
 			j["pickLimit"].is_number() && j["maxPlayers"].is_number() &&
 			j["maxRounds"].is_number() && j["maxPoints"].is_number() &&
 			j["decks"].is_array() && j["maxJokerRequests"].is_number() &&
+			j["jokerCardsToDeck"].is_boolean() && j["winnerBecomesCzar"].is_boolean() &&
 			std::all_of(j["decks"].begin(), j["decks"].end(), [](const json& el) { return el.is_string(); }))
 			return true;
 		return false;
@@ -59,6 +62,8 @@ struct CreateGameRequest
 	std::string name;
 	std::string password;
 
+	bool winnerBecomesCzar;
+	bool jokerCardsToDeck;
 	uint maxJokerRequests;
 	float pickLimit;
 	uint maxPlayers;
@@ -73,6 +78,7 @@ struct CreateGameRequest
 			j["pickLimit"].is_number() && j["maxPlayers"].is_number() &&
 			j["maxRounds"].is_number() && j["maxPoints"].is_number() &&
 			j["decks"].is_array() && j["maxJokerRequests"].is_number() &&
+			j["jokerCardsToDeck"].is_boolean() && j["winnerBecomesCzar"].is_boolean() &&
 			std::all_of(j["decks"].begin(), j["decks"].end(), [](const json& el) { return el.is_string(); }))
 			return true;
 		return false;

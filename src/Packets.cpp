@@ -17,6 +17,8 @@ LobbyStatus::LobbyStatus(const Lobby& l)
 	this->maxJokerRequests = l.maxJokerRequests;
 	this->password = l.password;
 	this->decks.insert(decks.end(), l.decks->begin(), l.decks->end());
+	this->jokerCardsToDeck = l.jokerCardsToDeck;
+	this->winnerBecomesCzar = l.winnerBecomesCzar;
 }
 
 LobbyInfo::LobbyInfo(const Lobby& l)

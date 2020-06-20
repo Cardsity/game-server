@@ -73,6 +73,8 @@ struct LobbyStatus
 	Player czar;
 	uint id;
 
+	bool winnerBecomesCzar;
+	bool jokerCardsToDeck;
 	uint maxJokerRequests;
 	float pickLimit;
 	uint maxPlayers;

@@ -57,6 +57,12 @@ Status Lobby::jokerRequest(Connection con, JokerCardRequest request)
 		{
 			p->addCard(request.text);
 			p->jokerRequests--;
+
+			if (jokerCardsToDeck)
+			{
+				decks->front().whiteCards.push_back(WhiteCard{ request.text });
+			}
+
 			server.send(con.hdl, HandUpdate{ p->hand, true, p->jokerRequests }, "", this->id);
 		}
 	});
@@ -229,15 +235,24 @@ Status Lobby::disconnect(Connection con)
 	if (livePlayers->size() <= 0)
 	{
 		isValid = false;
-		RunAsync([&]
+
+		if (!this->isIngame)
 		{
-			while (this->isIngame)
-			{
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-			}
 			if (lobbies->find(this->id) != lobbies->end())
 				lobbies->erase(this->id);
-		});
+		}
+		else
+		{
+			futures.push_back(std::async(std::launch::async, [&]
+			{
+				while (this->isIngame)
+				{
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+				}
+				if (lobbies->find(this->id) != lobbies->end())
+					lobbies->erase(this->id);
+			}));
+		}
 	}
 	sendGameUpdate();
 
@@ -295,35 +310,38 @@ void Lobby::addDeck(std::string id)
 	if (this->decks->size() >= 10) return;
 	if (sfLContains<Deck>(decks, id)) return;
 	linfo("ID ", this->id, ": Adding Deck ", id);
-	auto res = cpr::Get(
-		cpr::Url{ "http://cds:8020/deck/" + id + "/json" }
-	);
-	if (res.status_code == 200)
+	futures.push_back(std::async(std::launch::async, [&]
 	{
-		auto js = UnsafeJson::getUnsafeJson(res.text);
-		if (js.valid)
+		auto res = cpr::Get(
+			cpr::Url{ "http://cds:8020/deck/" + id + "/json" }
+		);
+		if (res.status_code == 200)
 		{
-			auto& j = js.json;
+			auto js = UnsafeJson::getUnsafeJson(res.text);
+			if (js.valid)
+			{
+				auto& j = js.json;
 
-			Deck deck;
-			deck.id = j["id"].get<uint>();
-			deck.name = j["name"].get<std::string>();
-			deck.whiteCards = j["white_cards"].get<std::vector<WhiteCard>>();
-			deck.blackCards = j["black_cards"].get<std::vector<BlackCard>>();
-			this->decks->push_back(deck);
+				Deck deck;
+				deck.id = j["id"].get<uint>();
+				deck.name = j["name"].get<std::string>();
+				deck.whiteCards = j["white_cards"].get<std::vector<WhiteCard>>();
+				deck.blackCards = j["black_cards"].get<std::vector<BlackCard>>();
+				this->decks->push_back(deck);
+			}
 		}
-	}
-	else
-	{
-		lerror(this->id, ": Deck fetching failed: ", id, " fetch returned: ", res.status_code, " raw: ", res.text);
-	}
+		else
+		{
+			lerror(this->id, ": Deck fetching failed: ", id, " fetch returned: ", res.status_code, " raw: ", res.text);
+		}
+	}));
 }
 
 void Lobby::runGameAsync()
 {
-	linfo("ID ", this->id, ": Let the games begin!");
 	isIngame = true;
-	RunAsync([&]
+	linfo("ID ", this->id, ": Let the games begin!");
+	futures.push_back(std::async(std::launch::async, ([&]
 	{
 		linfo("ID ", this->id, ": Starting new game!");
 		foreach(action, playerChangeStack)
@@ -365,13 +383,21 @@ void Lobby::runGameAsync()
 			linfo("ID ", this->id, ": Setting Czar and Blackcard");
 			czarPicked = 0;
 			blackCard = *getRandomFromList(sfgetRandomFromList<Deck>(decks)->blackCards);
-			czar = *sfgetRandomFromList<Player>(safePlayerCpy);
-			
-			while (czar == lastCzar)
+
+			if (winnerBecomesCzar && lastWinner.isValid())
+			{
+				czar = lastWinner;
+				lastCzar = lastWinner;
+			}
+			else
 			{
 				czar = *sfgetRandomFromList<Player>(safePlayerCpy);
+				while (czar == lastCzar)
+				{
+					czar = *sfgetRandomFromList<Player>(safePlayerCpy);
+				}
+				lastCzar = czar;
 			}
-			lastCzar = czar;
 
 			linfo("ID ", this->id, ": Giving each player ", blackCard.blanks, " Cards");
 			foreach(player, safePlayerCpy)
@@ -479,10 +505,10 @@ void Lobby::runGameAsync()
 			auto winner = sfgetItemByValue<Player, std::vector<Player>>(safePlayerCpy, czarPicked);
 			if (winner.has_value())
 			{
+				lastWinner = **winner;
 				(*winner)->points += blackCard.blanks;
 				wonCards->push_back(std::make_tuple((*winner)->owner, blackCard, (*winner)->playedCards));
 			}
-
 
 			CzarPickNotify notify{ czarPicked };
 			foreach(player, safePlayerCpy)
@@ -546,5 +572,5 @@ void Lobby::runGameAsync()
 		linfo("ID ", this->id, ": Exiting game loop");
 		isIngame = false;
 		return;
-	});
+	})));
 }

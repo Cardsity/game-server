@@ -13,12 +13,6 @@
 inline std::random_device rd;
 inline std::mt19937 mt(rd());
 
-template <typename T>
-inline void RunAsync(T lambda)
-{
-	std::thread thread(lambda);
-	thread.detach();
-}
 template <typename Content, typename T, typename List>
 bool sfMContains(List l, T what)
 {

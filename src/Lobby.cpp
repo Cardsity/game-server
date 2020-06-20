@@ -12,9 +12,11 @@ void Lobby::sendGameUpdate()
 {
 	linfo("ID ", this->id, ": Sending GameUpdates");
 	LobbyStatus packet(*this);
-	foreach(player, livePlayers)
+
+	std::vector<Player> safeLivePlayers(livePlayers->begin(), livePlayers->end());
+	for(auto player : safeLivePlayers)
 	{
-		server.send(player->owner.hdl, packet, "", id);
+		server.send(player.owner.hdl, packet, "", id);
 	}
 }
 Status Lobby::sendChatMessage(Connection con, SendChatMessageRequest message)
@@ -195,7 +197,7 @@ Status Lobby::connect(Connection con, JoinGameRequest request)
 	if (this->password.size() > 0 && this->password != request.password)
 		return Status{ "Invalid password", false };
 	if (this->isIngame)
-		return Status{ "Cant join while game is in progress", false };
+		return Status{ "Can't join while game is in progress", false };
 	if (this->livePlayers->size() >= maxPlayers)
 		return Status{ "Lobby is full", false };
 
@@ -254,14 +256,17 @@ Status Lobby::disconnect(Connection con)
 			}));
 		}
 	}
-	sendGameUpdate();
+	else
+	{
+		sendGameUpdate();
+	}
 
 	return Status{ "Disconnected from lobby", true };
 }
 Status Lobby::updateSettings(Connection con, UpdateGameRequest request)
 {
 	if (isIngame)
-		return Status{ "Cant update settings right now", false };
+		return Status{ "Can't update settings right now", false };
 	if (!isValid)
 		return Status{ "Invalid lobby", false };
 	if (livePlayers->size() <= 0)
@@ -310,7 +315,8 @@ void Lobby::addDeck(std::string id)
 	if (this->decks->size() >= 10) return;
 	if (sfLContains<Deck>(decks, id)) return;
 	linfo("ID ", this->id, ": Adding Deck ", id);
-	futures.push_back(std::async(std::launch::async, [&]
+
+	futures.push_back(std::async([&](std::string id)
 	{
 		auto res = cpr::Get(
 			cpr::Url{ "http://cds:8020/deck/" + id + "/json" }
@@ -327,14 +333,15 @@ void Lobby::addDeck(std::string id)
 				deck.name = j["name"].get<std::string>();
 				deck.whiteCards = j["white_cards"].get<std::vector<WhiteCard>>();
 				deck.blackCards = j["black_cards"].get<std::vector<BlackCard>>();
-				this->decks->push_back(deck);
+				decks->push_back(deck);
+				sendGameUpdate();
 			}
 		}
 		else
 		{
 			lerror(this->id, ": Deck fetching failed: ", id, " fetch returned: ", res.status_code, " raw: ", res.text);
 		}
-	}));
+	}, id));
 }
 
 void Lobby::runGameAsync()

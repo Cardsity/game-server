@@ -244,15 +244,17 @@ protected:
 				lobby.maxPlayers = packet.maxPlayers;
 				lobby.maxPoints = packet.maxPoints;
 				lobby.maxJokerRequests = packet.maxJokerRequests;
-
-				for (auto deck : packet.decks)
-				{
-					lobby.addDeck(deck);
-				}
-
+				lobby.jokerCardsToDeck = packet.jokerCardsToDeck;
+				lobby.winnerBecomesCzar = packet.winnerBecomesCzar;
+				
 				lobbies->insert({ lobby.id, lobby });
 				lobbies->at(lobby.id).forceConnect(con);
 				con.lobbyId = lobby.id;
+
+				for (auto deck : packet.decks)
+				{
+					lobbies->at(lobby.id).addDeck(deck);
+				}
 
 				send(handle, LobbyStatus(lobbies->at(lobby.id)), requestId);
 				return;

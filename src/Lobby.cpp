@@ -210,14 +210,23 @@ Status Lobby::connect(Connection con, JoinGameRequest request)
 
 	return Status{ "Sucessfully connected!", true };
 }
-Status Lobby::forceConnect(Connection con)
+void Lobby::forceConnectAndCreate(Connection con, CreateGameRequest request, std::string requestId)
 {
-	linfo("ID ", this->id, ": A player is being force connected");
-	livePlayers->push_back(con);
-	safePlayerCpy->push_back(con);
-	sendGameUpdate();
+	futures.push_back(std::async(std::launch::async, [&](std::string requestId, CreateGameRequest request, Connection con)
+	{
+		linfo("ID ", this->id, ": A player is being force connected");
+		livePlayers->push_back(con);
+		safePlayerCpy->push_back(con);
 
-	return Status{ "Sucessfully connected!", true };
+		for (auto deck : request.decks)
+		{
+			addDeck(deck);
+		}
+
+		server.send(con.hdl, Status{ "Sucessfully connected!", true }, requestId);
+		server.send(con.hdl, LobbyStatus(*this), requestId);
+		sendGameUpdate();
+	}, requestId, request, con));
 }
 Status Lobby::disconnect(Connection con)
 {
@@ -290,24 +299,27 @@ Status Lobby::updateSettings(Connection con, UpdateGameRequest request)
 	this->maxPoints = request.maxPoints;
 	this->password = request.password;
 
-	decks->erase(std::remove_if(decks->begin(), decks->end(), [request](Deck& d)
+	futures.push_back(std::async(std::launch::async, [&](UpdateGameRequest request)
 	{
-		if (!LContains<std::string>(request.decks, std::to_string(d.id)))
+		decks->erase(std::remove_if(decks->begin(), decks->end(), [request](Deck& d)
 		{
-			return true;
-		}
-		return false;
-	}), decks->end());
+			if (!LContains<std::string>(request.decks, std::to_string(d.id)))
+			{
+				return true;
+			}
+			return false;
+		}), decks->end());
 
-	for (auto deck : request.decks)
-	{
-		if (!sfLContains<Deck>(decks, deck))
+		for (auto deck : request.decks)
 		{
-			addDeck(deck);
+			if (!sfLContains<Deck>(decks, deck))
+			{
+				addDeck(deck);
+			}
 		}
-	}
+		sendGameUpdate();
+	}, request));
 
-	sendGameUpdate();
 	return Status{ "Updated!", true };
 }
 void Lobby::addDeck(std::string id)
@@ -315,41 +327,38 @@ void Lobby::addDeck(std::string id)
 	if (this->decks->size() >= 10) return;
 	if (sfLContains<Deck>(decks, id)) return;
 
-	futures.push_back(std::async([&](std::string id)
+	linfo(this->id, ": Adding Deck ", id);
+	auto res = cpr::Get(
+		cpr::Url{ "http://cds:8020/deck/" + id + "/json" }
+	);
+	if (res.status_code == 200)
 	{
-		linfo(this->id, ": Adding Deck ", id);
-		auto res = cpr::Get(
-			cpr::Url{ "http://cds:8020/deck/" + id + "/json" }
-		);
-		if (res.status_code == 200)
+		linfo(this->id, ": Deck ", id, " returned 200 OK!");
+		auto js = UnsafeJson::getUnsafeJson(res.text);
+		if (js.valid)
 		{
-			linfo(this->id, ": Deck ", id, " returned 200 OK!");
-			auto js = UnsafeJson::getUnsafeJson(res.text);
-			if (js.valid)
-			{
-				linfo(this->id, ": Deck ", id, " json is valid!");
-				auto& j = js.json;
+			linfo(this->id, ": Deck ", id, " json is valid!");
+			auto& j = js.json;
 
-				Deck deck;
-				deck.id = j["id"].get<uint>();
-				deck.name = j["name"].get<std::string>();
-				deck.whiteCards = j["white_cards"].get<std::vector<WhiteCard>>();
-				deck.blackCards = j["black_cards"].get<std::vector<BlackCard>>();
-				decks->push_back(deck);
-				sendGameUpdate();
-			}
-			else
-			{
-				lerror(this->id, ": Deck ", id, " json is invalid!");
-			}
+			Deck deck;
+			deck.id = j["id"].get<uint>();
+			deck.name = j["name"].get<std::string>();
+			deck.whiteCards = j["white_cards"].get<std::vector<WhiteCard>>();
+			deck.blackCards = j["black_cards"].get<std::vector<BlackCard>>();
+			decks->push_back(deck);
+			sendGameUpdate();
 		}
 		else
 		{
-			lerror(this->id, ": Deck fetching failed: ", id, " fetch returned: ", res.status_code, " raw: ", res.text);
+			lerror(this->id, ": Deck ", id, " json is invalid!");
 		}
+	}
+	else
+	{
+		lerror(this->id, ": Deck fetching failed: ", id, " fetch returned: ", res.status_code, " raw: ", res.text);
+	}
 
-		linfo(this->id, ": Deck fetching for ", id, " finished!");
-	}, id));
+	linfo(this->id, ": Deck fetching for ", id, " finished!");
 }
 
 void Lobby::runGameAsync()

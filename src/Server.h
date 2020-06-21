@@ -248,15 +248,10 @@ protected:
 				lobby.winnerBecomesCzar = packet.winnerBecomesCzar;
 				
 				lobbies->insert({ lobby.id, lobby });
-				lobbies->at(lobby.id).forceConnect(con);
+				
 				con.lobbyId = lobby.id;
+				lobbies->at(lobby.id).forceConnectAndCreate(con, packet, requestId);
 
-				for (auto deck : packet.decks)
-				{
-					lobbies->at(lobby.id).addDeck(deck);
-				}
-
-				send(handle, LobbyStatus(lobbies->at(lobby.id)), requestId);
 				return;
 			}
 			if (Is(JoinGameRequest))

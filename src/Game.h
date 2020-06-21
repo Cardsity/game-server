@@ -128,8 +128,8 @@ struct Lobby
 	Status kickPlayer(Connection, KickRequest);
 	Status startGame(Connection);
 
+	void forceConnectAndCreate(Connection, CreateGameRequest, std::string requestId);
 	Status connect(Connection, JoinGameRequest);
-	Status forceConnect(Connection);
 	Status disconnect(Connection);
 	
 	void addDeck(std::string id);

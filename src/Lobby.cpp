@@ -223,7 +223,7 @@ void Lobby::forceConnectAndCreate(Connection con, CreateGameRequest request, std
 			addDeck(deck);
 		}
 
-		server.send(con.hdl, Status{ "Sucessfully connected!", true }, requestId);
+		server.send(con.hdl, Status{ "Sucessfully connected!", true });
 		server.send(con.hdl, LobbyStatus(*this), requestId);
 		sendGameUpdate();
 	}, requestId, request, con));

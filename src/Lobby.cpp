@@ -319,7 +319,7 @@ void Lobby::addDeck(std::string id)
 	{
 		linfo(this->id, ": Adding Deck ", id);
 		auto res = cpr::Get(
-			cpr::Url{ "https://cds:8020/deck/" + id + "/json" }
+			cpr::Url{ "http://cds:8020/deck/" + id + "/json" }
 		);
 		if (res.status_code == 200)
 		{

@@ -1,4 +1,5 @@
 #pragma once
+#include <mutex>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -24,18 +25,14 @@ namespace Cardsity::GameObjects
 
     struct WhiteCard
     {
+        std::uint32_t id;
         std::string text;
     };
     struct BlackCard
     {
+        std::uint32_t id;
         std::string text;
         std::uint8_t blanks;
-    };
-
-    struct Hand
-    {
-        std::vector<WhiteCard> whiteCards;
-        std::vector<BlackCard> blackCards;
     };
 
     struct Player
@@ -44,10 +41,62 @@ namespace Cardsity::GameObjects
         std::uint16_t id;
         std::string color;
 
-        Hand hand;
         bool isCzar;
-        std::uint16_t points;
+        std::uint8_t points;
         std::uint8_t jokerRequests;
+        std::map<std::uint32_t, WhiteCard> hand;
+
+        bool operator==(const Player &other)
+        {
+            return other.id == id;
+        }
+    };
+
+    struct CardStack //--> Internal Data, not sent
+    {
+        Player owner;
+        std::vector<WhiteCard> cards;
+    };
+    struct ConcealedCardStack //--> goes to players
+    {
+        std::uint8_t id; //--> Idea of this is that each player gets assigned a random number when this packet is sent,
+                         // so that they will never be able to know who played which cards.
+        std::vector<WhiteCard> cards;
+
+        ConcealedCardStack(const CardStack &other)
+        {
+            cards = other.cards;
+            // TODO: Manually set id from game loop
+        }
+    };
+
+    struct GameState
+    {
+        std::uint8_t round;
+        BlackCard blackCard;
+        std::vector<CardStack> playedCards;
+    };
+    struct Game
+    {
+        GameState state;
+        GameSettings settings;
+        std::mutex playersMutex;
+        std::vector<Player> players;
+        std::vector<WhiteCard> whiteCardPool;
+        std::vector<BlackCard> blackCardPool;
+
+        void onTick();
+        void kick(Player);
+        void onConnect(Player);
+        void onDisconnect(Player);
+        void onPickWinner(std::uint8_t);
+        void onChatMessage(Player, const std::string &);
+        void onPlayCards(Player, std::vector<std::uint32_t>);
+
+      private:
+        std::uint8_t internalState;
+        std::mutex playerStatesMutex;
+        std::vector<Player> playerStates;
     };
 } // namespace Cardsity::GameObjects
 
@@ -69,15 +118,12 @@ REGISTER
     class_(WhiteCard).property(&WhiteCard::text, "text");
     class_(BlackCard).property(&BlackCard::text, "text").property(&BlackCard::blanks, "blanks");
 
-    class_(Hand).property(&Hand::whiteCards, "whiteCards").property(&Hand::blackCards, "blackCards");
-
-    // Intentionally left out hand, it will only be sent to the cliet via HandUpdate
+    // Intentionally left out hand & jokerRequests, it will only be sent to the cliet via HandUpdate
     class_(Player)
-        .property(&Player::name, "name")
         .property(&Player::id, "id")
+        .property(&Player::name, "name")
         .property(&Player::color, "color")
         .property(&Player::isCzar, "isCzar")
-        .property(&Player::points, "points")
-        .property(&Player::jokerRequests, "jokerRequests");
+        .property(&Player::points, "points");
 }
 FINISH

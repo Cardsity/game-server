@@ -16,10 +16,10 @@ namespace Cardsity::Packets::Requests
         GameObjects::GameSettings settings;
     };
 
-    struct PlayCard
+    struct PlayCards
     {
-        std::string text;
-        std::uint16_t id;
+        /*Contains card ids*/
+        std::vector<std::uint32_t> cards;
     };
     struct JokerCard
     {
@@ -51,7 +51,7 @@ REGISTER
     class_(CreateGame).property(&CreateGame::lobbyName, "lobbyName").property(&CreateGame::settings, "settings");
     class_(ModifyGame).property(&ModifyGame::settings, "settings");
 
-    class_(PlayCard).property(&PlayCard::text, "text").property(&PlayCard::id, "id");
+    class_(PlayCards).property(&PlayCards::cards, "cards");
     class_(JokerCard).property(&JokerCard::text, "text");
     class_(PickCard).property(&PickCard::id, "id");
 

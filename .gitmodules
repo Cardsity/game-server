@@ -4,3 +4,9 @@
 [submodule "lib/Simple-WebSocket-Server"]
 	path = lib/Simple-WebSocket-Server
 	url = https://gitlab.com/eidheim/Simple-WebSocket-Server/
+[submodule "lib/thread"]
+	path = lib/thread
+	url = https://github.com/aphenriques/thread
+[submodule "lib/spdlog"]
+	path = lib/spdlog
+	url = https://github.com/gabime/spdlog

@@ -3,9 +3,12 @@ project(main VERSION 0.1.0)
 
 file(GLOB src
     src/*.cpp
+    lib/thread/lib/thread/Pool.cpp
 )
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+include_directories("lib/spdlog/include/")
+include_directories("lib/thread/lib/thread/")
 include_directories("lib/Simple-WebSocket-Server/")
 include_directories("lib/json/single_include/nlohmann")
 
@@ -14,6 +17,8 @@ find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 
 add_compile_definitions(USE_STANDALONE_ASIO)
+
+add_subdirectory("lib/spdlog")
 
 add_executable(main ${src})
 

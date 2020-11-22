@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <string>
 #include "../../objects/game.h"
 #include "../../utils/reflection.h"
@@ -7,7 +8,8 @@ namespace Cardsity::Packets::Responses
 {
     struct HandUpdate
     {
-        GameObjects::Hand hand;
+        std::uint8_t jokerRequests;
+        std::map<std::uint32_t, GameObjects::WhiteCard> hand;
     };
 
     struct ChatMessage
@@ -15,10 +17,74 @@ namespace Cardsity::Packets::Responses
         std::string text;
         GameObjects::Player sender;
     };
+
+    struct PlayerLeave
+    {
+        GameObjects::Player player; // The player who left.
+        std::map<std::shared_ptr<Server::WsServer::Connection>, GameObjects::Player> allPlayers;
+    };
+    struct PlayerJoin
+    {
+        GameObjects::Player player; // The player who joined.
+        std::map<std::shared_ptr<Server::WsServer::Connection>, GameObjects::Player> allPlayers;
+    };
+    struct SettingsChange
+    {
+        GameObjects::GameSettings settings;
+    };
+    struct GameStateUpdate
+    {
+        GameObjects::GameState state;
+    };
+
+    struct PlayedCardsUpdate
+    {
+        struct ConcealedCardStack
+        {
+            std::uint8_t owner;
+            std::vector<GameObjects::WhiteCard> cards;
+        };
+        std::vector<ConcealedCardStack> playedCards;
+    };
 } // namespace Cardsity::Packets::Responses
 
 REGISTER
 {
     using namespace Cardsity::Packets::Responses;
+    class_(HandUpdate).property(&HandUpdate::hand, "hand").property(&HandUpdate::jokerRequests, "jokerRequests");
+    class_(ChatMessage).property(&ChatMessage::sender, "sender").property(&ChatMessage::text, "text");
+    class_(PlayerLeave)
+        .property(&PlayerLeave::player, "player")
+        .property(
+            &PlayerLeave::allPlayers, "allPlayers",
+            [](const std::map<std::shared_ptr<Server::WsServer::Connection>, Player> &players) {
+                std::vector<Player> rtn;
+                for (auto &player : players)
+                {
+                    rtn.push_back(player.second);
+                }
+                return rtn;
+            },
+            false);
+    class_(PlayerJoin)
+        .property(&PlayerJoin::player, "player")
+        .property(
+            &PlayerJoin::allPlayers, "allPlayers",
+            [](const std::map<std::shared_ptr<Server::WsServer::Connection>, Player> &players) {
+                std::vector<Player> rtn;
+                for (auto &player : players)
+                {
+                    rtn.push_back(player.second);
+                }
+                return rtn;
+            },
+            false);
+    class_(SettingsChange).property(&SettingsChange::settings, "settings");
+    class_(GameStateUpdate).property(&GameStateUpdate::state, "state");
+
+    class__(PlayedCardsUpdate::ConcealedCardStack, ConcealedCardStack)
+        .property(&PlayedCardsUpdate::ConcealedCardStack::cards, "cards")
+        .property(&PlayedCardsUpdate::ConcealedCardStack::owner, "owner");
+    class_(PlayedCardsUpdate).property(&PlayedCardsUpdate::playedCards, "playedCards");
 }
 FINISH

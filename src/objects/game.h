@@ -57,24 +57,10 @@ namespace Cardsity::GameObjects
         }
     };
 
-    struct CardStack //--> Internal Data, not sent
+    struct CardStack
     {
         Player owner;
         std::vector<WhiteCard> cards;
-    };
-
-    // TODO: Move this to packets
-    struct ConcealedCardStack //--> goes to players
-    {
-        std::uint8_t id; //--> Idea of this is that each player gets assigned a random number when this packet is sent,
-                         // so that they will never be able to know who played which cards.
-        std::vector<WhiteCard> cards;
-
-        ConcealedCardStack(const CardStack &other)
-        {
-            cards = other.cards;
-            // TODO: Manually set id from game loop
-        }
     };
 
     struct GameState

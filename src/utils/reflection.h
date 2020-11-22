@@ -176,6 +176,12 @@ namespace Cardsity
     };                                                                                                                 \
     inline const auto clazz##_regisration = (bool)internal::ReflectedClass<clazz>(#clazz)
 
+#define class__(clazz, name)                                                                                           \
+    template <> struct exists<clazz> : std::true_type                                                                  \
+    {                                                                                                                  \
+    };                                                                                                                 \
+    inline const auto name##_regisration = (bool)internal::ReflectedClass<clazz>(#clazz)
+
 #define FINISH
 
 namespace nlohmann

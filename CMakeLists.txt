@@ -3,6 +3,7 @@ project(main VERSION 0.1.0)
 
 file(GLOB src
     src/*.cpp
+    src/*/*.cpp
     lib/thread/lib/thread/Pool.cpp
 )
 
@@ -28,7 +29,7 @@ target_link_libraries(main PRIVATE Threads::Threads)
 if(MSVC)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
 else()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)

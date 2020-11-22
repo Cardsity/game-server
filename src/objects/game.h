@@ -2,7 +2,9 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <memory>
 #include <cstdint>
+#include "../server.h"
 #include "../utils/reflection.h"
 
 namespace Cardsity::GameObjects
@@ -41,7 +43,6 @@ namespace Cardsity::GameObjects
         std::uint16_t id;
         std::string color;
 
-        bool isCzar;
         std::uint8_t points;
         std::uint8_t jokerRequests;
         std::map<std::uint32_t, WhiteCard> hand;
@@ -50,6 +51,10 @@ namespace Cardsity::GameObjects
         {
             return other.id == id;
         }
+        bool operator!=(const Player &other)
+        {
+            return other.id != id;
+        }
     };
 
     struct CardStack //--> Internal Data, not sent
@@ -57,6 +62,8 @@ namespace Cardsity::GameObjects
         Player owner;
         std::vector<WhiteCard> cards;
     };
+
+    // TODO: Move this to packets
     struct ConcealedCardStack //--> goes to players
     {
         std::uint8_t id; //--> Idea of this is that each player gets assigned a random number when this packet is sent,
@@ -72,31 +79,41 @@ namespace Cardsity::GameObjects
 
     struct GameState
     {
+        Player czar;
         std::uint8_t round;
         BlackCard blackCard;
         std::vector<CardStack> playedCards;
     };
     struct Game
     {
+        Player host;
         GameState state;
+        std::uint16_t id;
         GameSettings settings;
+        std::map<std::shared_ptr<Server::WsServer::Connection>, Player> players;
+
+        void onTick(std::uint64_t currentTick);
+
+        void kick(std::shared_ptr<Server::WsServer::Connection>, std::uint16_t);
+        void onChatMessage(std::shared_ptr<Server::WsServer::Connection>, const std::string &);
+
+        void onPickWinner(std::shared_ptr<Server::WsServer::Connection>, std::uint8_t);
+        void onPlayCards(std::shared_ptr<Server::WsServer::Connection>, std::vector<std::uint32_t>);
+
+        void onDisconnect(std::shared_ptr<Server::WsServer::Connection>);
+        void onConnect(std::shared_ptr<Server::WsServer::Connection>, Player);
+
+      private:
         std::mutex playersMutex;
-        std::vector<Player> players;
+        std::mutex playedCardsMutex;
+        std::mutex playerStatesMutex;
+
         std::vector<WhiteCard> whiteCardPool;
         std::vector<BlackCard> blackCardPool;
 
-        void onTick();
-        void kick(Player);
-        void onConnect(Player);
-        void onDisconnect(Player);
-        void onPickWinner(std::uint8_t);
-        void onChatMessage(Player, const std::string &);
-        void onPlayCards(Player, std::vector<std::uint32_t>);
-
-      private:
         std::uint8_t internalState;
-        std::mutex playerStatesMutex;
         std::vector<Player> playerStates;
+        std::map<std::uint8_t, std::reference_wrapper<Player>> concealedPlayers;
     };
 } // namespace Cardsity::GameObjects
 
@@ -118,12 +135,33 @@ REGISTER
     class_(WhiteCard).property(&WhiteCard::text, "text");
     class_(BlackCard).property(&BlackCard::text, "text").property(&BlackCard::blanks, "blanks");
 
-    // Intentionally left out hand & jokerRequests, it will only be sent to the cliet via HandUpdate
+    // Intentionally left out hand & jokerRequests, it will only be sent to the client via HandUpdate
     class_(Player)
         .property(&Player::id, "id")
         .property(&Player::name, "name")
         .property(&Player::color, "color")
-        .property(&Player::isCzar, "isCzar")
         .property(&Player::points, "points");
+
+    class_(GameState)
+        .property(&GameState::blackCard, "blackCard")
+        .property(&GameState::czar, "czar")
+        .property(&GameState::round, "round");
+
+    class_(Game)
+        .property(&Game::state, "state")
+        .property(&Game::host, "host")
+        .property(&Game::id, "id")
+        .property(&Game::settings, "settings")
+        .property(
+            &Game::players, "players",
+            [](const std::map<std::shared_ptr<Server::WsServer::Connection>, Player> &players) {
+                std::vector<Player> rtn;
+                for (auto &player : players)
+                {
+                    rtn.push_back(player.second);
+                }
+                return rtn;
+            },
+            false);
 }
 FINISH

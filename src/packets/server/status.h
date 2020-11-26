@@ -19,6 +19,8 @@ namespace Cardsity::Packets::Responses
         ALREADY_PLAYED,
         KICK_SUCCESS,
         ALREADY_INGAME,
+        CARD_ADDED,
+        SUCCESS,
     };
     struct GenericStatus
     {

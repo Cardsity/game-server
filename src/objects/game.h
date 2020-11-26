@@ -66,10 +66,23 @@ namespace Cardsity::GameObjects
     struct GameState
     {
         Player czar;
-        std::uint8_t round;
         BlackCard blackCard;
+        std::atomic<std::uint8_t> round;
         std::vector<CardStack> playedCards;
+
+        bool inGame()
+        {
+            return round > 0;
+        }
     };
+    enum InternalGameState : std::uint8_t
+    {
+        HANDOUT_CARDS,
+        WAIT_FOR_PLAYERS,
+        WAIT_FOR_CZAR,
+        CZAR_PICKED,
+    };
+
     struct Game
     {
         Player host;
@@ -78,7 +91,7 @@ namespace Cardsity::GameObjects
         GameSettings settings;
         std::map<std::shared_ptr<Server::WsServer::Connection>, Player> players;
 
-        void onTick(std::uint64_t currentTick);
+        void onTick(std::uint64_t);
 
         void kick(std::shared_ptr<Server::WsServer::Connection>, std::uint16_t);
         void onChatMessage(std::shared_ptr<Server::WsServer::Connection>, const std::string &);
@@ -97,9 +110,12 @@ namespace Cardsity::GameObjects
         std::vector<WhiteCard> whiteCardPool;
         std::vector<BlackCard> blackCardPool;
 
-        std::uint8_t internalState;
         std::vector<Player> playerStates;
+        std::atomic<std::uint8_t> internalState;
         std::map<std::uint8_t, std::reference_wrapper<Player>> concealedPlayers;
+
+        bool waitForTick;
+        std::uint64_t nextTick;
     };
 } // namespace Cardsity::GameObjects
 
@@ -140,7 +156,7 @@ REGISTER
         .property(&Game::settings, "settings")
         .property(
             &Game::players, "players",
-            [](const std::map<std::shared_ptr<Server::WsServer::Connection>, Player> &players) {
+            [](const auto &players) {
                 std::vector<Player> rtn;
                 for (auto &player : players)
                 {

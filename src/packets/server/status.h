@@ -22,7 +22,6 @@ namespace Cardsity::Packets::Responses
     };
     struct GenericStatus
     {
-        bool success;
         Status status;
     };
 } // namespace Cardsity::Packets::Responses
@@ -30,6 +29,6 @@ namespace Cardsity::Packets::Responses
 REGISTER
 {
     using namespace Cardsity::Packets::Responses;
-    class_(GenericStatus).property(&GenericStatus::success, "success").property(&GenericStatus::status, "status");
+    class_(GenericStatus).property(&GenericStatus::status, "status");
 }
 FINISH

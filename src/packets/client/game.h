@@ -38,7 +38,7 @@ namespace Cardsity::Packets::Requests
     {
     };
 
-    struct ChatMessage
+    struct SendMessage
     {
         std::string text;
     };
@@ -48,16 +48,19 @@ REGISTER
 {
     using namespace Packets::Requests;
 
-    class_(CreateGame).property(&CreateGame::lobbyName, "lobbyName").property(&CreateGame::settings, "settings");
-    class_(ModifyGame).property(&ModifyGame::settings, "settings");
+    class_(CreateGame)
+        .property(&CreateGame::lobbyName, "lobbyName")
+        .property(&CreateGame::settings, "settings")
+        .constructable();
+    class_(ModifyGame).property(&ModifyGame::settings, "settings").constructable();
 
-    class_(PlayCards).property(&PlayCards::cards, "cards");
-    class_(JokerCard).property(&JokerCard::text, "text");
-    class_(PickCard).property(&PickCard::id, "id");
+    class_(PlayCards).property(&PlayCards::cards, "cards").constructable();
+    class_(JokerCard).property(&JokerCard::text, "text").constructable();
+    class_(PickCard).property(&PickCard::id, "id").constructable();
 
-    class_(Kick).property(&Kick::id, "id");
-    class_(Start);
+    class_(Kick).property(&Kick::id, "id").constructable();
+    class_(Start).constructable();
 
-    class_(ChatMessage).property(&ChatMessage::text, "text");
+    class_(SendMessage).property(&SendMessage::text, "text").constructable();
 }
 FINISH

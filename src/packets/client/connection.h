@@ -34,12 +34,12 @@ REGISTER
 {
     using namespace Packets::Requests;
 
-    class_(Logout);
-    class_(Login).property(&Login::name, "name").property(&Login::color, "color");
+    class_(Logout).constructable();
+    class_(Login).property(&Login::name, "name").property(&Login::color, "color").constructable();
 
-    class_(Leave);
-    class_(Join).property(&Join::password, "password");
+    class_(Leave).constructable();
+    class_(Join).property(&Join::password, "password").constructable();
 
-    class_(ListGames).property(&ListGames::size, "size").property(&ListGames::offset, "offset");
+    class_(ListGames).property(&ListGames::size, "size").property(&ListGames::offset, "offset").constructable();
 }
 FINISH

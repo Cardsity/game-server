@@ -1,12 +1,12 @@
 #pragma once
 #include <map>
 #include <memory>
-#include <optional>
 #include <string>
+#include <optional>
 #include <json.hpp>
-#include <type_traits>
 #include <typeindex>
 #include <functional>
+#include <type_traits>
 
 namespace Cardsity
 {
@@ -37,18 +37,26 @@ namespace Cardsity
                     }
                 };
                 std::shared_ptr<DataBase> data;
+                std::type_index type;
 
               public:
-                Any()
+                Any() : type(typeid(nullptr))
                 {
                 }
-                template <typename T> Any(T &&data) : data(std::make_shared<Data<T>>(std::forward<T>(data)))
+                template <typename T,
+                          std::enable_if_t<!std::is_same<std::remove_const_t<std::remove_reference_t<T>>, Any>::value>
+                              * = nullptr>
+                Any(T &&data) : data(std::make_shared<Data<T>>(std::forward<T>(data))), type(typeid(T))
                 {
                 }
                 template <typename T> auto &get()
                 {
                     auto rtn = std::static_pointer_cast<Data<T>>(data);
                     return rtn->data;
+                }
+                template <typename T> bool is()
+                {
+                    return type == typeid(T);
                 }
             };
 
@@ -103,7 +111,11 @@ namespace Cardsity
             class ReflectedClassBase
             {
               protected:
+                std::function<std::optional<Any>(const std::vector<internal::ReflectedProperty> &properties,
+                                                 const std::string &name, const nlohmann::json &)>
+                    parser;
                 std::vector<internal::ReflectedProperty> properties;
+                bool isConstructable = false;
                 std::string name;
 
               public:
@@ -135,6 +147,14 @@ namespace Cardsity
                         property.fromJson(data, clazz);
                     }
                 }
+                std::optional<Any> tryParse(const nlohmann::json &j)
+                {
+                    if (isConstructable)
+                    {
+                        return parser(properties, name, j);
+                    }
+                    return std::nullopt;
+                }
             };
             template <class C> class ReflectedClass : ReflectedClassBase
             {
@@ -161,6 +181,34 @@ namespace Cardsity
                 auto &property(T C::*memberPtr, const std::string &name, GetLambda customGetter, SetLambda customSetter)
                 {
                     this->properties.push_back({memberPtr, name, customGetter, customSetter});
+                    return *this;
+                }
+                auto &constructable()
+                {
+                    this->parser = [](const auto &properties, const auto &name,
+                                      const nlohmann::json &j) -> std::optional<Any> {
+                        try
+                        {
+                            if (j["name"] == name)
+                            {
+                                C clazz;
+                                const nlohmann::json &data = j["data"];
+
+                                for (auto property : properties)
+                                {
+                                    property.fromJson(data, clazz);
+                                }
+
+                                return clazz;
+                            }
+                        }
+                        catch (...)
+                        {
+                        }
+                        return std::nullopt;
+                    };
+                    isConstructable = true;
+
                     return *this;
                 }
             };
@@ -195,5 +243,17 @@ namespace nlohmann
     void from_json(const json &j, T &obj)
     {
         return Cardsity::Reflection::internal::reflectedClasses[typeid(T)].fromJson(j, obj);
+    }
+    inline std::optional<Cardsity::Reflection::internal::Any> tryParse(const json &j)
+    {
+        for (auto clazz : Cardsity::Reflection::internal::reflectedClasses)
+        {
+            auto rtn = clazz.second.tryParse(j);
+            if (rtn)
+            {
+                return *rtn;
+            }
+        }
+        return std::nullopt;
     }
 } // namespace nlohmann

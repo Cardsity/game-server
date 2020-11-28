@@ -75,13 +75,6 @@ namespace Cardsity::GameObjects
             return round > 0;
         }
     };
-    enum InternalGameState : std::uint8_t
-    {
-        HANDOUT_CARDS,
-        WAIT_FOR_PLAYERS,
-        WAIT_FOR_CZAR,
-        CZAR_PICKED,
-    };
 
     struct Game
     {
@@ -92,6 +85,7 @@ namespace Cardsity::GameObjects
         std::map<std::shared_ptr<Server::WsServer::Connection>, Player> players;
 
         void onTick(std::uint64_t);
+        void start(std::shared_ptr<Server::WsServer::Connection>);
 
         void kick(std::shared_ptr<Server::WsServer::Connection>, std::uint16_t);
         void onChatMessage(std::shared_ptr<Server::WsServer::Connection>, const std::string &);
@@ -103,19 +97,25 @@ namespace Cardsity::GameObjects
         void onConnect(std::shared_ptr<Server::WsServer::Connection>, Player);
 
       private:
+        enum InternalGameState : std::uint8_t
+        {
+            HANDOUT_CARDS,
+            WAIT_FOR_PLAYERS,
+            WAIT_FOR_CZAR,
+            CZAR_PICKED,
+        };
+
         std::mutex playersMutex;
         std::mutex playedCardsMutex;
         std::mutex playerStatesMutex;
 
-        std::vector<WhiteCard> whiteCardPool;
-        std::vector<BlackCard> blackCardPool;
-
         std::vector<Player> playerStates;
-        std::atomic<std::uint8_t> internalState;
+        std::atomic<std::uint8_t> internalState = HANDOUT_CARDS;
         std::map<std::uint8_t, std::reference_wrapper<Player>> concealedPlayers;
 
-        bool waitForTick;
-        std::uint64_t nextTick;
+        std::atomic<bool> waitForTick;
+        std::atomic<std::uint64_t> lastTick;
+        std::atomic<std::uint64_t> nextTick;
     };
 } // namespace Cardsity::GameObjects
 
@@ -147,7 +147,8 @@ REGISTER
     class_(GameState)
         .property(&GameState::blackCard, "blackCard")
         .property(&GameState::czar, "czar")
-        .property(&GameState::round, "round");
+        .property(
+            &GameState::round, "round", [](const std::atomic<std::uint8_t> &round) { return round.load(); }, false);
 
     class_(Game)
         .property(&Game::state, "state")

@@ -18,47 +18,52 @@ namespace Cardsity
             {
             };
         } // namespace Registration
+
+        class Any
+        {
+          private:
+            struct DataBase
+            {
+            };
+            template <typename T> struct Data : DataBase
+            {
+                T data;
+                Data(T data) : data(data)
+                {
+                }
+            };
+            std::shared_ptr<DataBase> data;
+            std::type_index type;
+
+          public:
+            Any() : type(typeid(nullptr))
+            {
+            }
+            template <typename T,
+                      std::enable_if_t<!std::is_same<std::remove_const_t<std::remove_reference_t<T>>, Any>::value> * =
+                          nullptr>
+            Any(T &&data) : data(std::make_shared<Data<T>>(std::forward<T>(data))), type(typeid(T))
+            {
+            }
+            template <typename T> auto &get()
+            {
+                auto rtn = std::static_pointer_cast<Data<T>>(data);
+                return rtn->data;
+            }
+            template <typename T> bool is()
+            {
+                return type == typeid(T);
+            }
+            auto getType()
+            {
+                return type;
+            }
+        };
+
         namespace internal
         {
             class ReflectedClassBase;
             inline std::map<std::type_index, ReflectedClassBase> reflectedClasses;
-
-            class Any
-            {
-              private:
-                struct DataBase
-                {
-                };
-                template <typename T> struct Data : DataBase
-                {
-                    T data;
-                    Data(T data) : data(data)
-                    {
-                    }
-                };
-                std::shared_ptr<DataBase> data;
-                std::type_index type;
-
-              public:
-                Any() : type(typeid(nullptr))
-                {
-                }
-                template <typename T,
-                          std::enable_if_t<!std::is_same<std::remove_const_t<std::remove_reference_t<T>>, Any>::value>
-                              * = nullptr>
-                Any(T &&data) : data(std::make_shared<Data<T>>(std::forward<T>(data))), type(typeid(T))
-                {
-                }
-                template <typename T> auto &get()
-                {
-                    auto rtn = std::static_pointer_cast<Data<T>>(data);
-                    return rtn->data;
-                }
-                template <typename T> bool is()
-                {
-                    return type == typeid(T);
-                }
-            };
 
             class ReflectedProperty
             {
@@ -76,7 +81,7 @@ namespace Cardsity
                 {
                     this->memberPtr = member;
                     toJson = [=](nlohmann::json &j, Any clazz) { j[name] = clazz.get<const C &>().*member; };
-                    fromJson = [=](const nlohmann::json &j, Any clazz) { j[name].get_to(clazz.get<C &>().*member); };
+                    fromJson = [=](const nlohmann::json &j, Any clazz) { j.at(name).get_to(clazz.get<C &>().*member); };
                 }
                 template <class C, typename T, typename GetLambda>
                 ReflectedProperty(T C::*member, const std::string &name, GetLambda customGetter) : name(name)
@@ -86,7 +91,7 @@ namespace Cardsity
                     toJson = [=](nlohmann::json &j, Any clazz) {
                         j[name] = customGetter(clazz.get<const C &>().*member);
                     };
-                    fromJson = [=](const nlohmann::json &j, Any clazz) { j[name].get_to(clazz.get<C &>().*member); };
+                    fromJson = [=](const nlohmann::json &j, Any clazz) { j.at(name).get_to(clazz.get<C &>().*member); };
                 }
                 template <class C, typename T, typename GetLambda, typename SetLambda>
                 ReflectedProperty(T C::*member, const std::string &name, GetLambda customGetter, SetLambda customSetter)
@@ -103,7 +108,7 @@ namespace Cardsity
                     if constexpr (!std::is_same<SetLambda, bool>::value)
                     {
                         fromJson = [=](const nlohmann::json &j, Any clazz) {
-                            j[name].get_to(customSetter(clazz.get<C &>().*member));
+                            j.at(name).get_to(customSetter(clazz.get<C &>().*member));
                         };
                     }
                 }
@@ -137,10 +142,10 @@ namespace Cardsity
                 }
                 template <class C> void fromJson(const nlohmann::json &j, C &clazz)
                 {
-                    if (name != j["name"])
+                    if (name != j.at("name"))
                         throw std::runtime_error("Invalid cast");
 
-                    const nlohmann::json &data = j["data"];
+                    const nlohmann::json &data = j.at("data");
 
                     for (auto property : properties)
                     {
@@ -183,16 +188,36 @@ namespace Cardsity
                     this->properties.push_back({memberPtr, name, customGetter, customSetter});
                     return *this;
                 }
+
+                template <class Base, typename T> auto &property(T Base::*memberPtr, const std::string &name)
+                {
+                    this->properties.push_back({memberPtr, name});
+                    return *this;
+                }
+                template <class Base, typename T, typename GetLambda>
+                auto &property(T Base::*memberPtr, const std::string &name, GetLambda customGetter)
+                {
+                    this->properties.push_back({memberPtr, name, customGetter});
+                    return *this;
+                }
+                template <class Base, typename T, typename GetLambda, typename SetLambda>
+                auto &property(T Base::*memberPtr, const std::string &name, GetLambda customGetter,
+                               SetLambda customSetter)
+                {
+                    this->properties.push_back({memberPtr, name, customGetter, customSetter});
+                    return *this;
+                }
+
                 auto &constructable()
                 {
                     this->parser = [](const auto &properties, const auto &name,
                                       const nlohmann::json &j) -> std::optional<Any> {
                         try
                         {
-                            if (j["name"] == name)
+                            if (j.at("name") == name)
                             {
                                 C clazz;
-                                const nlohmann::json &data = j["data"];
+                                const nlohmann::json &data = j.at("data");
 
                                 for (auto property : properties)
                                 {
@@ -244,9 +269,13 @@ namespace nlohmann
     {
         return Cardsity::Reflection::internal::reflectedClasses[typeid(T)].fromJson(j, obj);
     }
-    inline std::optional<Cardsity::Reflection::internal::Any> tryParse(const json &j)
+} // namespace nlohmann
+
+namespace Cardsity::Reflection
+{
+    inline std::optional<Any> tryParse(const nlohmann::json &j)
     {
-        for (auto clazz : Cardsity::Reflection::internal::reflectedClasses)
+        for (auto clazz : internal::reflectedClasses)
         {
             auto rtn = clazz.second.tryParse(j);
             if (rtn)
@@ -256,4 +285,4 @@ namespace nlohmann
         }
         return std::nullopt;
     }
-} // namespace nlohmann
+} // namespace Cardsity::Reflection

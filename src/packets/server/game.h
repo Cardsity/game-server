@@ -21,12 +21,12 @@ namespace Cardsity::Packets::Responses
     struct PlayerLeave
     {
         GameObjects::Player player; // The player who left.
-        std::map<std::shared_ptr<Server::WsServer::Connection>, GameObjects::Player> allPlayers;
+        std::map<con, GameObjects::Player> allPlayers;
     };
     struct PlayerJoin
     {
         GameObjects::Player player; // The player who joined.
-        std::map<std::shared_ptr<Server::WsServer::Connection>, GameObjects::Player> allPlayers;
+        std::map<con, GameObjects::Player> allPlayers;
     };
     struct SettingsChange
     {
@@ -57,7 +57,7 @@ REGISTER
         .property(&PlayerLeave::player, "player")
         .property(
             &PlayerLeave::allPlayers, "allPlayers",
-            [](const std::map<std::shared_ptr<Server::WsServer::Connection>, Player> &players) {
+            [](const std::map<con, Player> &players) {
                 std::vector<Player> rtn;
                 for (auto &player : players)
                 {
@@ -70,7 +70,7 @@ REGISTER
         .property(&PlayerJoin::player, "player")
         .property(
             &PlayerJoin::allPlayers, "allPlayers",
-            [](const std::map<std::shared_ptr<Server::WsServer::Connection>, Player> &players) {
+            [](const std::map<con, Player> &players) {
                 std::vector<Player> rtn;
                 for (auto &player : players)
                 {

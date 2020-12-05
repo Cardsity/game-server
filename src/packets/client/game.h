@@ -1,6 +1,7 @@
 #pragma once
-#include <cstdint>
+#include <regex>
 #include <string>
+#include <cstdint>
 #include "../../objects/game.h"
 #include "../../utils/reflection.h"
 
@@ -10,10 +11,27 @@ namespace Cardsity::Packets::Requests
     {
         std::string lobbyName;
         GameObjects::GameSettings settings;
+
+        bool valid()
+        {
+            static auto lobbyNameRegex = std::regex("^.{3,32}$");
+
+            if (!std::regex_match(lobbyName, lobbyNameRegex))
+                return false;
+            if (!settings.valid())
+                return false;
+
+            return true;
+        }
     };
     struct ModifyGame
     {
         GameObjects::GameSettings settings;
+
+        bool valid()
+        {
+            return settings.valid();
+        }
     };
 
     struct PlayCards
@@ -24,6 +42,15 @@ namespace Cardsity::Packets::Requests
     struct JokerCard
     {
         std::string text;
+
+        bool valid()
+        {
+            static auto contentRegex = std::regex("^.{1,100}$");
+            if (!std::regex_match(text, contentRegex))
+                return false;
+
+            return true;
+        }
     };
     struct PickCard
     {
@@ -41,6 +68,15 @@ namespace Cardsity::Packets::Requests
     struct SendMessage
     {
         std::string text;
+
+        bool valid()
+        {
+            static auto messageRegex = std::regex("^.{1,128}$");
+            if (!std::regex_match(text, messageRegex))
+                return false;
+
+            return true;
+        }
     };
 } // namespace Cardsity::Packets::Requests
 

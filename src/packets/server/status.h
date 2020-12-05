@@ -6,10 +6,10 @@ namespace Cardsity::Packets::Responses
 {
     enum Status : std::uint8_t
     {
+        BAD_NAME_OR_COLOR,
         INVALID_REQUEST,
         INVALID_PLAYER,
         INVALID_GAME,
-        BAD_NAME,
         BAD_MESSAGE,
         BAD_PASSWORD,
         NOT_CZAR,
@@ -21,6 +21,8 @@ namespace Cardsity::Packets::Responses
         ALREADY_INGAME,
         CARD_ADDED,
         SUCCESS,
+        EXPECTED_AUTH,
+        BAD_GAME_SETTINGS,
     };
     struct GenericStatus
     {

@@ -3,8 +3,9 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <atomic>
 #include <cstdint>
-#include "../server.h"
+#include "../server/globals.h"
 #include "../utils/reflection.h"
 
 namespace Cardsity::GameObjects
@@ -23,6 +24,21 @@ namespace Cardsity::GameObjects
         bool winnerCzar;
         bool inviteOnly;
         bool jokerToDeck;
+
+        bool valid()
+        {
+            if (maxPlayers > 15 || maxPlayers < 3)
+                return false;
+            if (maxPoints > 25 || maxPoints < 5)
+                return false;
+            if (maxJokers > 10 || maxJokers < 0)
+                return false;
+            if (decks.size() > 10 || decks.size() < 1)
+                return false;
+            // TODO: Max Picklimit
+
+            return true;
+        }
     };
 
     struct WhiteCard
@@ -37,14 +53,18 @@ namespace Cardsity::GameObjects
         std::uint8_t blanks;
     };
 
-    struct Player
+    struct Connection
     {
         std::string name;
-        std::uint16_t id;
+        std::uint64_t id;
         std::string color;
+        std::uint64_t currentLobby;
+    };
 
-        std::uint8_t points;
-        std::uint8_t jokerRequests;
+    struct Player : public Connection
+    {
+        std::uint8_t points = 0;
+        std::uint8_t jokerRequests = 0;
         std::map<std::uint32_t, WhiteCard> hand;
 
         bool operator==(const Player &other)
@@ -54,6 +74,16 @@ namespace Cardsity::GameObjects
         bool operator!=(const Player &other)
         {
             return other.id != id;
+        }
+        Player()
+        {
+        }
+        Player(const Connection &con)
+        {
+            id = con.id;
+            name = con.name;
+            color = con.color;
+            currentLobby = con.currentLobby;
         }
     };
 
@@ -67,12 +97,19 @@ namespace Cardsity::GameObjects
     {
         Player czar;
         BlackCard blackCard;
-        std::atomic<std::uint8_t> round;
         std::vector<CardStack> playedCards;
+        std::atomic<std::uint8_t> round = 0;
 
         bool inGame()
         {
             return round > 0;
+        }
+        void operator=(const GameState &other)
+        {
+            czar = other.czar;
+            round = other.round.load();
+            blackCard = other.blackCard;
+            playedCards = other.playedCards;
         }
     };
 
@@ -80,21 +117,42 @@ namespace Cardsity::GameObjects
     {
         Player host;
         GameState state;
-        std::uint16_t id;
+        std::uint64_t id;
         GameSettings settings;
-        std::map<std::shared_ptr<Server::WsServer::Connection>, Player> players;
+        std::string lobbyName;
+        std::map<con, Player> players;
 
+        void start(con);
         void onTick(std::uint64_t);
-        void start(std::shared_ptr<Server::WsServer::Connection>);
 
-        void kick(std::shared_ptr<Server::WsServer::Connection>, std::uint16_t);
-        void onChatMessage(std::shared_ptr<Server::WsServer::Connection>, const std::string &);
+        void kick(con, std::uint16_t);
+        void onChatMessage(con, const std::string &);
 
-        void onPickWinner(std::shared_ptr<Server::WsServer::Connection>, std::uint8_t);
-        void onPlayCards(std::shared_ptr<Server::WsServer::Connection>, std::vector<std::uint32_t>);
+        void onPickWinner(con, std::uint8_t);
+        void onPlayCards(con, std::vector<std::uint32_t>);
 
-        void onDisconnect(std::shared_ptr<Server::WsServer::Connection>);
-        void onConnect(std::shared_ptr<Server::WsServer::Connection>, Player);
+        void onDisconnect(con);
+        void onConnect(con, Connection);
+
+        Game()
+        {
+        }
+        Game(const Game &other)
+        {
+            id = other.id;
+            host = other.host;
+            state = other.state;
+            players = other.players;
+            settings = other.settings;
+            lobbyName = other.lobbyName;
+            playerStates = other.playerStates;
+            concealedPlayers = other.concealedPlayers;
+            internalState = other.internalState.load();
+
+            lastTick = other.lastTick.load();
+            nextTick = other.nextTick.load();
+            waitForTick = other.waitForTick.load();
+        }
 
       private:
         enum InternalGameState : std::uint8_t
@@ -109,13 +167,13 @@ namespace Cardsity::GameObjects
         std::mutex playedCardsMutex;
         std::mutex playerStatesMutex;
 
-        std::vector<Player> playerStates;
+        std::map<std::uint64_t, Player> playerStates;
         std::atomic<std::uint8_t> internalState = HANDOUT_CARDS;
         std::map<std::uint8_t, std::reference_wrapper<Player>> concealedPlayers;
 
-        std::atomic<bool> waitForTick;
-        std::atomic<std::uint64_t> lastTick;
-        std::atomic<std::uint64_t> nextTick;
+        std::atomic<bool> waitForTick = false;
+        std::atomic<std::uint64_t> lastTick = 0;
+        std::atomic<std::uint64_t> nextTick = 0;
     };
 } // namespace Cardsity::GameObjects
 
@@ -144,6 +202,11 @@ REGISTER
         .property(&Player::color, "color")
         .property(&Player::points, "points");
 
+    class_(Connection)
+        .property(&Connection::id, "id")
+        .property(&Connection::name, "name")
+        .property(&Connection::color, "color");
+
     class_(GameState)
         .property(&GameState::blackCard, "blackCard")
         .property(&GameState::czar, "czar")
@@ -151,6 +214,7 @@ REGISTER
             &GameState::round, "round", [](const std::atomic<std::uint8_t> &round) { return round.load(); }, false);
 
     class_(Game)
+        .property(&Game::lobbyName, "lobbyName")
         .property(&Game::state, "state")
         .property(&Game::host, "host")
         .property(&Game::id, "id")

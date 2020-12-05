@@ -1,6 +1,7 @@
 #pragma once
-#include <cstdint>
+#include <regex>
 #include <string>
+#include <cstdint>
 #include "../../utils/reflection.h"
 
 namespace Cardsity::Packets::Requests
@@ -9,6 +10,19 @@ namespace Cardsity::Packets::Requests
     {
         std::string name;
         std::string color;
+
+        bool valid()
+        {
+            static auto nameRegex = std::regex("^.{1,32}$");
+            static auto colorRegex = std::regex("^#[A-F0-9]{6}$");
+
+            if (!std::regex_match(name, nameRegex))
+                return false;
+            if (!std::regex_match(color, colorRegex))
+                return false;
+
+            return true;
+        }
     };
     struct Logout
     {

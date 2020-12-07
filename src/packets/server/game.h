@@ -36,6 +36,16 @@ namespace Cardsity::Packets::Responses
     {
         GameObjects::GameState state;
     };
+    enum DisconnectReason : std::uint8_t
+    {
+        LOBBY_CLOSED,
+        UNDEFINED,
+        KICKED,
+    };
+    struct Disconnect
+    {
+        DisconnectReason reason;
+    };
 
     struct PlayedCardsUpdate
     {
@@ -86,5 +96,7 @@ REGISTER
         .property(&PlayedCardsUpdate::ConcealedCardStack::cards, "cards")
         .property(&PlayedCardsUpdate::ConcealedCardStack::owner, "owner");
     class_(PlayedCardsUpdate).property(&PlayedCardsUpdate::playedCards, "playedCards");
+
+    class_(Disconnect).property(&Disconnect::reason, "reason");
 }
 FINISH

@@ -13,8 +13,8 @@ namespace Cardsity::Packets::Requests
 
         bool valid()
         {
-            static auto nameRegex = std::regex("^.{1,32}$");
-            static auto colorRegex = std::regex("^#[A-F0-9]{6}$");
+            static const auto nameRegex = std::regex("^.{1,32}$");
+            static const auto colorRegex = std::regex("^#[A-F0-9]{6}$");
 
             if (!std::regex_match(name, nameRegex))
                 return false;

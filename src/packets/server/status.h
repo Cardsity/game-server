@@ -23,6 +23,9 @@ namespace Cardsity::Packets::Responses
         SUCCESS,
         EXPECTED_AUTH,
         BAD_GAME_SETTINGS,
+        NOT_PLAYABLE,
+        CANT_PICK_YET,
+        BAD_CARD,
     };
     struct GenericStatus
     {

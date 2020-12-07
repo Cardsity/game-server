@@ -8,6 +8,11 @@
 #include "../server/globals.h"
 #include "../utils/reflection.h"
 
+namespace Cardsity
+{
+    class Server;
+}
+
 namespace Cardsity::GameObjects
 {
     struct GameSettings
@@ -16,7 +21,7 @@ namespace Cardsity::GameObjects
         std::uint8_t maxRounds;
         std::uint8_t maxPoints;
         std::uint8_t maxJokers;
-        std::uint8_t pickLimit;
+        std::uint8_t pickLimit; // In seconds!
 
         std::string password;
         std::vector<std::string> decks;
@@ -35,7 +40,8 @@ namespace Cardsity::GameObjects
                 return false;
             if (decks.size() > 10 || decks.size() < 1)
                 return false;
-            // TODO: Max Picklimit
+            if (pickLimit > 180 || pickLimit < 30)
+                return false;
 
             return true;
         }
@@ -116,6 +122,7 @@ namespace Cardsity::GameObjects
     struct Game
     {
         Player host;
+        Server &server;
         GameState state;
         std::uint64_t id;
         GameSettings settings;
@@ -131,13 +138,13 @@ namespace Cardsity::GameObjects
         void onPickWinner(con, std::uint8_t);
         void onPlayCards(con, std::vector<std::uint32_t>);
 
-        void onDisconnect(con);
+        void onDisconnect(con, bool);
         void onConnect(con, Connection);
 
-        Game()
+        Game(Server &server) : server(server)
         {
         }
-        Game(const Game &other)
+        Game(const Game &other) : server(other.server)
         {
             id = other.id;
             host = other.host;

@@ -14,7 +14,7 @@ namespace Cardsity::Packets::Requests
 
         bool valid()
         {
-            static auto lobbyNameRegex = std::regex("^.{3,32}$");
+            static const auto lobbyNameRegex = std::regex("^.{3,32}$");
 
             if (!std::regex_match(lobbyName, lobbyNameRegex))
                 return false;
@@ -45,7 +45,7 @@ namespace Cardsity::Packets::Requests
 
         bool valid()
         {
-            static auto contentRegex = std::regex("^.{1,100}$");
+            static const auto contentRegex = std::regex("^.{1,100}$");
             if (!std::regex_match(text, contentRegex))
                 return false;
 
@@ -71,7 +71,7 @@ namespace Cardsity::Packets::Requests
 
         bool valid()
         {
-            static auto messageRegex = std::regex("^.{1,128}$");
+            static const auto messageRegex = std::regex("^.{1,128}$");
             if (!std::regex_match(text, messageRegex))
                 return false;
 

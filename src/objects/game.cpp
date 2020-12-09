@@ -271,7 +271,7 @@ namespace Cardsity::GameObjects
         }
         if (!override && players.find(connection) == players.end())
         {
-            spdlog::error("({}) requested to send a message and was associated to lobby but does not exist in lobbys "
+            spdlog::error("({}) requested to pick a winner and was associated to lobby but does not exist in lobbys "
                           "player list",
                           connection->remote_endpoint().address().to_string());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::UNKNOWN});
@@ -511,7 +511,7 @@ namespace Cardsity::GameObjects
         playersMutex.lock();
         if (players.find(connection) == players.end())
         {
-            spdlog::error("({}) requested to send a message and was associated to lobby but does not exist in lobbys "
+            spdlog::error("({}) requested to start a lobby and was associated to lobby but does not exist in lobbys "
                           "player list",
                           connection->remote_endpoint().address().to_string());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::UNKNOWN});

@@ -98,6 +98,12 @@ namespace Cardsity::GameObjects
         Player owner;
         std::vector<WhiteCard> cards;
     };
+    struct RoundResult
+    {
+        Player winner;
+        BlackCard blackCard;
+        std::vector<CardStack> playedCards;
+    };
 
     struct GameState
     {
@@ -171,9 +177,12 @@ namespace Cardsity::GameObjects
         };
 
         std::mutex playersMutex;
+        std::mutex gameStateMutex; // Only lock this when we're changing the state! (I don't think there will be any
+                                   // problems without this, it's just for sanity...)
         std::mutex playedCardsMutex;
         std::mutex playerStatesMutex;
 
+        std::vector<RoundResult> history;
         std::map<std::uint64_t, Player> playerStates;
         std::atomic<std::uint8_t> internalState = HANDOUT_CARDS;
         std::map<std::uint8_t, std::reference_wrapper<Player>> concealedPlayers;
@@ -201,6 +210,10 @@ REGISTER
 
     class_(WhiteCard).property(&WhiteCard::text, "text");
     class_(BlackCard).property(&BlackCard::text, "text").property(&BlackCard::blanks, "blanks");
+    class_(RoundResult)
+        .property(&RoundResult::blackCard, "blackCard")
+        .property(&RoundResult::playedCards, "playedCards")
+        .property(&RoundResult::winner, "winner");
 
     // Intentionally left out hand & jokerRequests, it will only be sent to the client via HandUpdate
     class_(Player)

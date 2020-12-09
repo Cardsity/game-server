@@ -56,6 +56,12 @@ namespace Cardsity::Packets::Responses
         };
         std::vector<ConcealedCardStack> playedCards;
     };
+
+    struct GameEnd
+    {
+        GameObjects::Player winner;
+        std::vector<GameObjects::RoundResult> history;
+    };
 } // namespace Cardsity::Packets::Responses
 
 REGISTER
@@ -98,5 +104,6 @@ REGISTER
     class_(PlayedCardsUpdate).property(&PlayedCardsUpdate::playedCards, "playedCards");
 
     class_(Disconnect).property(&Disconnect::reason, "reason");
+    class_(GameEnd).property(&GameEnd::history, "history").property(&GameEnd::winner, "winner");
 }
 FINISH

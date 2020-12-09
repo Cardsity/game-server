@@ -141,8 +141,8 @@ namespace Cardsity::GameObjects
         void kick(con, std::uint16_t);
         void onChatMessage(con, const std::string &);
 
-        void onPickWinner(con, std::uint8_t);
         void onPlayCards(con, std::vector<std::uint32_t>);
+        void onPickWinner(con, std::uint8_t, bool = false);
 
         void onDisconnect(con, bool);
         void onConnect(con, Connection);
@@ -176,9 +176,12 @@ namespace Cardsity::GameObjects
             CZAR_PICKED,
         };
 
+        Player lastWinner;
+
         std::mutex playersMutex;
         std::mutex gameStateMutex; // Only lock this when we're changing the state! (I don't think there will be any
                                    // problems without this, it's just for sanity...)
+        std::mutex concealedMutex;
         std::mutex playedCardsMutex;
         std::mutex playerStatesMutex;
 
@@ -210,6 +213,7 @@ REGISTER
 
     class_(WhiteCard).property(&WhiteCard::text, "text");
     class_(BlackCard).property(&BlackCard::text, "text").property(&BlackCard::blanks, "blanks");
+    class_(CardStack).property(&CardStack::cards, "cards").property(&CardStack::owner, "owner");
     class_(RoundResult)
         .property(&RoundResult::blackCard, "blackCard")
         .property(&RoundResult::playedCards, "playedCards")

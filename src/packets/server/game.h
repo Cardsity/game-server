@@ -9,7 +9,7 @@ namespace Cardsity::Packets::Responses
     struct HandUpdate
     {
         std::uint8_t jokerRequests;
-        std::map<std::uint32_t, GameObjects::WhiteCard> hand;
+        std::map<std::uint32_t, GameObjects::WhiteCard> hand; // Gets converted to vector
     };
 
     struct ChatMessage
@@ -20,13 +20,13 @@ namespace Cardsity::Packets::Responses
 
     struct PlayerLeave
     {
-        GameObjects::Player player; // The player who left.
-        std::map<con, GameObjects::Player> allPlayers;
+        GameObjects::Player player;                    // The player who left.
+        std::map<con, GameObjects::Player> allPlayers; // Gets converted to vector
     };
     struct PlayerJoin
     {
-        GameObjects::Player player; // The player who joined.
-        std::map<con, GameObjects::Player> allPlayers;
+        GameObjects::Player player;                    // The player who joined.
+        std::map<con, GameObjects::Player> allPlayers; // Gets converted to vector
     };
     struct SettingsChange
     {
@@ -67,7 +67,16 @@ namespace Cardsity::Packets::Responses
 REGISTER
 {
     using namespace Cardsity::Packets::Responses;
-    class_(HandUpdate).property(&HandUpdate::hand, "hand").property(&HandUpdate::jokerRequests, "jokerRequests");
+    class_(HandUpdate)
+        .property(&HandUpdate::jokerRequests, "jokerRequests")
+        .property(&HandUpdate::hand, "hand", [](const std::map<std::uint32_t, WhiteCard> &hand) {
+            std::vector<WhiteCard> rtn;
+            for (auto &card : hand)
+            {
+                rtn.push_back(card.second);
+            }
+            return rtn;
+        });
     class_(ChatMessage).property(&ChatMessage::sender, "sender").property(&ChatMessage::text, "text");
     class_(PlayerLeave)
         .property(&PlayerLeave::player, "player")

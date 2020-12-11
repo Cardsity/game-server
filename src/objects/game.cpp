@@ -41,6 +41,13 @@ namespace Cardsity::GameObjects
                 players.insert({connection, con});
             }
         }
+
+        auto joinPacket = Packets::Responses::PlayerJoin{players.at(connection), players};
+        for (auto &player : players)
+        {
+            server.send(player.first, joinPacket);
+        }
+
         playerStatesMutex.unlock();
         playersMutex.unlock();
 
@@ -68,6 +75,13 @@ namespace Cardsity::GameObjects
                     break;
                 }
             }
+
+            auto leavePacket = Packets::Responses::PlayerLeave{players.at(connection), players};
+            for (auto &player : players)
+            {
+                server.send(player.first, leavePacket);
+            }
+
             players.erase(player);
         }
 
@@ -475,7 +489,7 @@ namespace Cardsity::GameObjects
                 playersMutex.lock();
                 if (!settings.winnerCzar)
                 {
-                    // TODO: set new czar
+                    //? Maybe we should switch to a czar counter?
                     auto czarIt = std::find_if(players.begin(), players.end(),
                                                [&](auto &item) { return state.czar == item.second; });
                     if (czarIt != players.end())

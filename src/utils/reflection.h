@@ -259,16 +259,17 @@ namespace Cardsity
 
 namespace nlohmann
 {
-    template <typename T, std::enable_if_t<Cardsity::Reflection::Registration::exists<T>::value> * = nullptr>
-    void to_json(json &j, const T &obj)
+    template <class C> struct adl_serializer<C, std::enable_if_t<Cardsity::Reflection::Registration::exists<C>::value>>
     {
-        return Cardsity::Reflection::internal::reflectedClasses[typeid(T)].toJson(j, obj);
-    }
-    template <typename T, std::enable_if_t<Cardsity::Reflection::Registration::exists<T>::value> * = nullptr>
-    void from_json(const json &j, T &obj)
-    {
-        return Cardsity::Reflection::internal::reflectedClasses[typeid(T)].fromJson(j, obj);
-    }
+        static void to_json(json &j, const C &obj)
+        {
+            return Cardsity::Reflection::internal::reflectedClasses[typeid(C)].toJson(j, obj);
+        }
+        static void from_json(const json &j, C &obj)
+        {
+            return Cardsity::Reflection::internal::reflectedClasses[typeid(C)].fromJson(j, obj);
+        }
+    };
 } // namespace nlohmann
 
 namespace Cardsity::Reflection

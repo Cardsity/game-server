@@ -139,7 +139,8 @@ namespace Cardsity::GameObjects
         void onTick(std::uint64_t);
 
         void kick(con, std::uint16_t);
-        void onChatMessage(con, const std::string &);
+        void onChatMessage(con, std::string);
+        void onModifyRequest(con, GameSettings settings);
 
         void onPlayCards(con, std::vector<std::uint32_t>);
         void onPickWinner(con, std::uint8_t, bool = false);
@@ -181,6 +182,7 @@ namespace Cardsity::GameObjects
         std::mutex playersMutex;
         std::mutex gameStateMutex; // Only lock this when we're changing the state! (I don't think there will be any
                                    // problems without this, it's just for sanity...)
+        std::mutex settingsMutex;
         std::mutex concealedMutex;
         std::mutex playedCardsMutex;
         std::mutex playerStatesMutex;

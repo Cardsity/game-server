@@ -16,41 +16,42 @@ namespace Cardsity::GameObjects
             spdlog::debug("({}) tried to join a game that was already in progress",
                           connection->remote_endpoint().address().to_string());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::ALREADY_INGAME});
-            return;
-        }
-
-        playersMutex.lock();
-        if (players.empty())
-            host = con;
-
-        playerStatesMutex.lock();
-        if (playerStates.find(con.id) != playerStates.end())
-        {
-            auto &oldState = playerStates.at(con.id);
-            players.insert({connection, oldState});
-            playerStates.erase(con.id);
-
-            spdlog::debug("Found backup state of ({}), restoring old game state",
-                          connection->remote_endpoint().address().to_string());
         }
         else
         {
-            if (players.find(connection) == players.end())
+            playersMutex.lock();
+            if (players.empty())
+                host = con;
+
+            playerStatesMutex.lock();
+            if (playerStates.find(con.id) != playerStates.end())
             {
-                players.insert({connection, con});
+                auto &oldState = playerStates.at(con.id);
+                players.insert({connection, oldState});
+                playerStates.erase(con.id);
+
+                spdlog::debug("Found backup state of ({}), restoring old game state",
+                              connection->remote_endpoint().address().to_string());
             }
+            else
+            {
+                if (players.find(connection) == players.end())
+                {
+                    players.insert({connection, con});
+                }
+            }
+
+            auto joinPacket = Packets::Responses::PlayerJoin{players.at(connection), players};
+            for (auto &player : players)
+            {
+                server.send(player.first, joinPacket);
+            }
+
+            playerStatesMutex.unlock();
+            playersMutex.unlock();
+
+            spdlog::debug("({}): Player ({}) connected", id, connection->remote_endpoint().address().to_string());
         }
-
-        auto joinPacket = Packets::Responses::PlayerJoin{players.at(connection), players};
-        for (auto &player : players)
-        {
-            server.send(player.first, joinPacket);
-        }
-
-        playerStatesMutex.unlock();
-        playersMutex.unlock();
-
-        spdlog::debug("({}): Player ({}) connected", id, connection->remote_endpoint().address().to_string());
     }
     void Game::onDisconnect(con connection, bool kicked)
     {
@@ -63,8 +64,8 @@ namespace Cardsity::GameObjects
             if (playerStates.find(player->second.id) == playerStates.end())
                 playerStates.insert({player->second.id, player->second});
             else
-                spdlog::warn("({}): tried to backup player-state of ({}) but it's already saved", id,
-                             connection->remote_endpoint().address().to_string());
+                spdlog::error("({}): tried to backup player-state of ({}) but it's already saved", id,
+                              connection->remote_endpoint().address().to_string());
 
             for (auto concealed = concealedPlayers.begin(); concealed != concealedPlayers.end(); concealed++)
             {
@@ -126,8 +127,52 @@ namespace Cardsity::GameObjects
                 server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::NOT_HOST});
             }
         }
+        else
+        {
+            spdlog::error("({}): Received Modify Request from ({}) but he's not in lobby. This shouldn't happen!", id,
+                          connection->remote_endpoint().address().to_string());
+            server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::UNKNOWN});
+        }
 
         playersMutex.unlock();
+    }
+
+    void Game::onModifyRequest(con connection, GameSettings newSettings)
+    {
+        if (state.inGame())
+        {
+            spdlog::warn("({}): ({}) tried to change settings in invalid gamestate", id,
+                         connection->remote_endpoint().address().to_string());
+            server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::ALREADY_INGAME});
+            return;
+        }
+        else
+        {
+            if (players.find(connection) == players.end())
+            {
+                spdlog::error("({}): Received Modify Request from ({}) but he's not in lobby. This shouldn't happen!",
+                              id, connection->remote_endpoint().address().to_string());
+                server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::UNKNOWN});
+            }
+            else
+            {
+                if (players.at(connection) != host)
+                {
+                    spdlog::warn("({}): ({}) tried to change gamesettings but is not host!", id,
+                                 connection->remote_endpoint().address().to_string());
+                    server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::NOT_HOST});
+                }
+                else
+                {
+                    settingsMutex.lock();
+                    settings = newSettings;
+                    settingsMutex.unlock();
+                    spdlog::debug("({}): ({}) just changed the gamesettings", id,
+                                  connection->remote_endpoint().address().to_string());
+                    server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::SUCCESS});
+                }
+            }
+        }
     }
 
     void Game::onPlayCards(con connection, std::vector<std::uint32_t> cards)
@@ -143,95 +188,99 @@ namespace Cardsity::GameObjects
         playersMutex.lock();
         if (players.find(connection) == players.end())
         {
-            spdlog::warn("({}): Received CardPlay Request from ({}) but he's not in lobby. This shouldn't happen!", id,
-                         connection->remote_endpoint().address().to_string());
-        }
-        auto &player = players.at(connection);
-        std::vector<WhiteCard> rCards;
-        bool allOwned = true;
-
-        for (auto card : cards)
-        {
-            auto fCard = player.hand.find(card);
-            if (fCard == player.hand.end())
-            {
-                allOwned = false;
-                break;
-            }
-            else
-            {
-                rCards.push_back(fCard->second);
-                player.hand.erase(fCard);
-            }
-        }
-        if (allOwned)
-        {
-            playedCardsMutex.lock();
-
-            bool hasPlayedAlready = false;
-            for (auto &item : state.playedCards)
-            {
-                if (item.owner == player)
-                {
-                    hasPlayedAlready = true;
-                    break;
-                }
-            }
-
-            if (hasPlayedAlready)
-            {
-                spdlog::warn("({}): ({}) tried to play cards but he has already played!", id,
-                             connection->remote_endpoint().address().to_string());
-                server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::ALREADY_PLAYED});
-            }
-            else
-            {
-                gameStateMutex.lock();
-                concealedMutex.lock();
-
-                Packets::Responses::PlayedCardsUpdate updatePacket;
-
-                for (auto &deck : state.playedCards)
-                {
-                    auto concealedOwner = std::find_if(concealedPlayers.begin(), concealedPlayers.end(),
-                                                       [&](auto &item) { return deck.owner == item.second; });
-
-                    if (concealedOwner != concealedPlayers.end())
-                    {
-                        updatePacket.playedCards.push_back({concealedOwner->first, deck.cards});
-                    }
-                    else
-                    {
-                        spdlog::error("({}): Failed to find player ({}) in concealedPlayer list!", id, player.name);
-                    }
-                }
-                for (auto &pl : players)
-                {
-                    server.send(pl.first, updatePacket);
-                }
-
-                state.playedCards.push_back({player, rCards});
-                if (state.playedCards.size() == players.size())
-                {
-                    waitForTick = false;
-                }
-
-                concealedMutex.unlock();
-                gameStateMutex.unlock();
-            }
-
-            playedCardsMutex.unlock();
+            spdlog::error("({}): Received CardPlay Request from ({}) but he's not in lobby. This shouldn't happen!", id,
+                          connection->remote_endpoint().address().to_string());
+            server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::UNKNOWN});
         }
         else
         {
-            spdlog::warn("({}): ({}) tried to play a card he does not own!", id,
-                         connection->remote_endpoint().address().to_string());
-            server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::CARD_NOT_OWNED});
+            auto &player = players.at(connection);
+            std::vector<WhiteCard> rCards;
+            bool allOwned = true;
+
+            for (auto card : cards)
+            {
+                auto fCard = player.hand.find(card);
+                if (fCard == player.hand.end())
+                {
+                    allOwned = false;
+                    break;
+                }
+                else
+                {
+                    rCards.push_back(fCard->second);
+                    player.hand.erase(fCard);
+                }
+            }
+            if (allOwned)
+            {
+                playedCardsMutex.lock();
+
+                bool hasPlayedAlready = false;
+                for (auto &item : state.playedCards)
+                {
+                    if (item.owner == player)
+                    {
+                        hasPlayedAlready = true;
+                        break;
+                    }
+                }
+
+                if (hasPlayedAlready)
+                {
+                    spdlog::warn("({}): ({}) tried to play cards but he has already played!", id,
+                                 connection->remote_endpoint().address().to_string());
+                    server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::ALREADY_PLAYED});
+                }
+                else
+                {
+                    gameStateMutex.lock();
+                    concealedMutex.lock();
+
+                    Packets::Responses::PlayedCardsUpdate updatePacket;
+
+                    for (auto &deck : state.playedCards)
+                    {
+                        auto concealedOwner = std::find_if(concealedPlayers.begin(), concealedPlayers.end(),
+                                                           [&](auto &item) { return deck.owner == item.second; });
+
+                        if (concealedOwner != concealedPlayers.end())
+                        {
+                            updatePacket.playedCards.push_back({concealedOwner->first, deck.cards});
+                        }
+                        else
+                        {
+                            spdlog::error("({}): Failed to find player ({}) in concealedPlayer list!", id, player.name);
+                        }
+                    }
+                    for (auto &pl : players)
+                    {
+                        server.send(pl.first, updatePacket);
+                    }
+
+                    state.playedCards.push_back({player, rCards});
+                    if (state.playedCards.size() == players.size())
+                    {
+                        waitForTick = false;
+                    }
+
+                    concealedMutex.unlock();
+                    gameStateMutex.unlock();
+                }
+
+                playedCardsMutex.unlock();
+            }
+            else
+            {
+                spdlog::warn("({}): ({}) tried to play a card he does not own!", id,
+                             connection->remote_endpoint().address().to_string());
+                server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::CARD_NOT_OWNED});
+            }
         }
         playersMutex.unlock();
     }
 
-    void Game::onChatMessage(con connection, const std::string &message)
+    void Game::onChatMessage(con connection, std::string message)
     {
         if (players.find(connection) == players.end())
         {
@@ -314,6 +363,7 @@ namespace Cardsity::GameObjects
                 else
                 {
                     gameStateMutex.lock();
+                    settingsMutex.lock(); // Shouldn't be needed but just for sanity sacke
                     if (settings.winnerCzar)
                     {
                         state.czar = concealedPlayers.at(id);
@@ -333,6 +383,7 @@ namespace Cardsity::GameObjects
                     if (!override)
                         server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::SUCCESS});
                 }
+                settingsMutex.unlock();
                 concealedMutex.unlock();
             }
         }
@@ -340,6 +391,10 @@ namespace Cardsity::GameObjects
 
     void Game::onTick(std::uint64_t currentTick)
     {
+        if ((currentTick - lastTick) > gTps)
+        {
+            spdlog::warn("({}): Last tick was over {} seconds ago!", id, currentTick - lastTick);
+        }
         lastTick = currentTick;
 
         if (!state.inGame())
@@ -423,16 +478,21 @@ namespace Cardsity::GameObjects
         case WAIT_FOR_PLAYERS:
             internalState++;
             waitForTick = true;
+            settingsMutex.lock();
             nextTick = currentTick + gTps * settings.pickLimit;
+            settingsMutex.unlock();
             break;
         case WAIT_FOR_CZAR:
             internalState++;
             waitForTick = true;
+            settingsMutex.lock();
             nextTick = currentTick + gTps * settings.pickLimit;
+            settingsMutex.unlock();
             break;
         case CZAR_PICKED:
             gameStateMutex.lock();
             concealedMutex.lock();
+            settingsMutex.lock();
             state.round++;
 
             RoundResult currentResult;
@@ -505,6 +565,7 @@ namespace Cardsity::GameObjects
                 }
                 playersMutex.unlock();
             }
+            settingsMutex.unlock();
             concealedMutex.unlock();
             gameStateMutex.unlock();
             break;

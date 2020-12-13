@@ -1,9 +1,9 @@
 #include "server/server.h"
 
-int main()
+int main(int argc, char **args)
 {
     Cardsity::Server server;
-    server.run();
+    server.run(args, argc);
 
     return 0;
 }

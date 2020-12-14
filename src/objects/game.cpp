@@ -13,8 +13,7 @@ namespace Cardsity::GameObjects
     {
         if (state.inGame())
         {
-            spdlog::debug("({}) tried to join a game that was already in progress",
-                          connection->remote_endpoint().address().to_string());
+            spdlog::debug("({}) tried to join a game that was already in progress", connection.remote_endpoint());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::ALREADY_INGAME});
         }
         else
@@ -30,8 +29,7 @@ namespace Cardsity::GameObjects
                 players.insert({connection, oldState});
                 playerStates.erase(con.id);
 
-                spdlog::debug("Found backup state of ({}), restoring old game state",
-                              connection->remote_endpoint().address().to_string());
+                spdlog::debug("Found backup state of ({}), restoring old game state", connection.remote_endpoint());
             }
             else
             {
@@ -50,7 +48,7 @@ namespace Cardsity::GameObjects
             playerStatesMutex.unlock();
             playersMutex.unlock();
 
-            spdlog::debug("({}): Player ({}) connected", id, connection->remote_endpoint().address().to_string());
+            spdlog::debug("({}): Player ({}) connected", id, connection.remote_endpoint());
         }
     }
     void Game::onDisconnect(con connection, bool kicked)
@@ -65,7 +63,7 @@ namespace Cardsity::GameObjects
                 playerStates.insert({player->second.id, player->second});
             else
                 spdlog::error("({}): tried to backup player-state of ({}) but it's already saved", id,
-                              connection->remote_endpoint().address().to_string());
+                              connection.remote_endpoint());
 
             for (auto concealed = concealedPlayers.begin(); concealed != concealedPlayers.end(); concealed++)
             {
@@ -89,7 +87,7 @@ namespace Cardsity::GameObjects
         concealedMutex.lock();
         playerStatesMutex.unlock();
 
-        spdlog::debug("({}): Player ({}) disconnected", id, connection->remote_endpoint().address().to_string());
+        spdlog::debug("({}): Player ({}) disconnected", id, connection.remote_endpoint());
         server.send(connection,
                     Packets::Responses::Disconnect{kicked ? Packets::Responses::DisconnectReason::KICKED
                                                           : Packets::Responses::DisconnectReason::UNDEFINED});
@@ -108,29 +106,27 @@ namespace Cardsity::GameObjects
                 if (player != players.end())
                 {
                     onDisconnect(player->first, true);
-                    spdlog::debug("({}): Host ({}) kicked ({})", id,
-                                  connection->remote_endpoint().address().to_string(),
+                    spdlog::debug("({}): Host ({}) kicked ({})", id, connection.remote_endpoint(),
                                   player->first->remote_endpoint().address().to_string());
                     server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::KICK_SUCCESS});
                 }
                 else
                 {
-                    spdlog::warn("({}): Host ({}) picked invalid player ({})", id,
-                                 connection->remote_endpoint().address().to_string(), playerId);
+                    spdlog::warn("({}): Host ({}) picked invalid player ({})", id, connection.remote_endpoint(),
+                                 playerId);
                     server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::INVALID_PLAYER});
                 }
             }
             else
             {
-                spdlog::warn("({}): ({}) was not host and tried to kick player", id,
-                             connection->remote_endpoint().address().to_string());
+                spdlog::warn("({}): ({}) was not host and tried to kick player", id, connection.remote_endpoint());
                 server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::NOT_HOST});
             }
         }
         else
         {
             spdlog::error("({}): Received Modify Request from ({}) but he's not in lobby. This shouldn't happen!", id,
-                          connection->remote_endpoint().address().to_string());
+                          connection.remote_endpoint());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::UNKNOWN});
         }
 
@@ -141,8 +137,7 @@ namespace Cardsity::GameObjects
     {
         if (state.inGame())
         {
-            spdlog::warn("({}): ({}) tried to change settings in invalid gamestate", id,
-                         connection->remote_endpoint().address().to_string());
+            spdlog::warn("({}): ({}) tried to change settings in invalid gamestate", id, connection.remote_endpoint());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::ALREADY_INGAME});
             return;
         }
@@ -151,7 +146,7 @@ namespace Cardsity::GameObjects
             if (players.find(connection) == players.end())
             {
                 spdlog::error("({}): Received Modify Request from ({}) but he's not in lobby. This shouldn't happen!",
-                              id, connection->remote_endpoint().address().to_string());
+                              id, connection.remote_endpoint());
                 server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::UNKNOWN});
             }
             else
@@ -159,7 +154,7 @@ namespace Cardsity::GameObjects
                 if (players.at(connection) != host)
                 {
                     spdlog::warn("({}): ({}) tried to change gamesettings but is not host!", id,
-                                 connection->remote_endpoint().address().to_string());
+                                 connection.remote_endpoint());
                     server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::NOT_HOST});
                 }
                 else
@@ -167,8 +162,7 @@ namespace Cardsity::GameObjects
                     settingsMutex.lock();
                     settings = newSettings;
                     settingsMutex.unlock();
-                    spdlog::debug("({}): ({}) just changed the gamesettings", id,
-                                  connection->remote_endpoint().address().to_string());
+                    spdlog::debug("({}): ({}) just changed the gamesettings", id, connection.remote_endpoint());
                     server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::SUCCESS});
                 }
             }
@@ -179,8 +173,7 @@ namespace Cardsity::GameObjects
     {
         if (internalState != WAIT_FOR_PLAYERS)
         {
-            spdlog::warn("({}): ({}) tried to play cards in invalid gamestate", id,
-                         connection->remote_endpoint().address().to_string());
+            spdlog::warn("({}): ({}) tried to play cards in invalid gamestate", id, connection.remote_endpoint());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::NOT_PLAYABLE});
             return;
         }
@@ -189,7 +182,7 @@ namespace Cardsity::GameObjects
         if (players.find(connection) == players.end())
         {
             spdlog::error("({}): Received CardPlay Request from ({}) but he's not in lobby. This shouldn't happen!", id,
-                          connection->remote_endpoint().address().to_string());
+                          connection.remote_endpoint());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::UNKNOWN});
         }
         else
@@ -229,7 +222,7 @@ namespace Cardsity::GameObjects
                 if (hasPlayedAlready)
                 {
                     spdlog::warn("({}): ({}) tried to play cards but he has already played!", id,
-                                 connection->remote_endpoint().address().to_string());
+                                 connection.remote_endpoint());
                     server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::ALREADY_PLAYED});
                 }
                 else
@@ -272,8 +265,7 @@ namespace Cardsity::GameObjects
             }
             else
             {
-                spdlog::warn("({}): ({}) tried to play a card he does not own!", id,
-                             connection->remote_endpoint().address().to_string());
+                spdlog::warn("({}): ({}) tried to play a card he does not own!", id, connection.remote_endpoint());
                 server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::CARD_NOT_OWNED});
             }
         }
@@ -286,7 +278,7 @@ namespace Cardsity::GameObjects
         {
             spdlog::error("({}) requested to send a message and was associated to lobby but does not exist in lobbys "
                           "player list",
-                          connection->remote_endpoint().address().to_string());
+                          connection.remote_endpoint());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::UNKNOWN});
         }
         else
@@ -326,8 +318,7 @@ namespace Cardsity::GameObjects
     {
         if (!override && internalState != WAIT_FOR_CZAR)
         {
-            spdlog::warn("({}): ({}) tried to pick card in invalid gamestate!", id,
-                         connection->remote_endpoint().address().to_string());
+            spdlog::warn("({}): ({}) tried to pick card in invalid gamestate!", id, connection.remote_endpoint());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::CANT_PICK_YET});
             return;
         }
@@ -335,7 +326,7 @@ namespace Cardsity::GameObjects
         {
             spdlog::error("({}) requested to pick a winner and was associated to lobby but does not exist in lobbys "
                           "player list",
-                          connection->remote_endpoint().address().to_string());
+                          connection.remote_endpoint());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::UNKNOWN});
         }
         else
@@ -344,8 +335,7 @@ namespace Cardsity::GameObjects
 
             if (!override && state.czar != player)
             {
-                spdlog::warn("({}): ({}) tried to pick card but is not czar!", id,
-                             connection->remote_endpoint().address().to_string());
+                spdlog::warn("({}): ({}) tried to pick card but is not czar!", id, connection.remote_endpoint());
                 server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::NOT_CZAR});
             }
             else
@@ -356,7 +346,7 @@ namespace Cardsity::GameObjects
                     if (!override)
                     {
                         spdlog::warn("({}): ({}) tried to pick card that does not exist!", id,
-                                     connection->remote_endpoint().address().to_string());
+                                     connection.remote_endpoint());
                         server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::BAD_CARD});
                     }
                 }
@@ -428,7 +418,7 @@ namespace Cardsity::GameObjects
                 }
                 std::shuffle(concealed.begin(), concealed.end(), std::default_random_engine{});
 
-                onPickWinner(nullptr, concealed.front(), true);
+                onPickWinner({nullptr}, concealed.front(), true);
             }
             concealedMutex.unlock();
         }
@@ -577,8 +567,7 @@ namespace Cardsity::GameObjects
         if (state.inGame())
         {
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::ALREADY_INGAME});
-            spdlog::debug("({}) tried to start a game that was already in progress",
-                          connection->remote_endpoint().address().to_string());
+            spdlog::debug("({}) tried to start a game that was already in progress", connection.remote_endpoint());
             return;
         }
 
@@ -587,15 +576,14 @@ namespace Cardsity::GameObjects
         {
             spdlog::error("({}) requested to start a lobby and was associated to lobby but does not exist in lobbys "
                           "player list",
-                          connection->remote_endpoint().address().to_string());
+                          connection.remote_endpoint());
             server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::UNKNOWN});
         }
         else
         {
             if (host != players.at(connection))
             {
-                spdlog::warn("({}): ({}) tried to start lobby but is not host", id,
-                             connection->remote_endpoint().address().to_string());
+                spdlog::warn("({}): ({}) tried to start lobby but is not host", id, connection.remote_endpoint());
                 server.send(connection, Packets::Responses::GenericStatus{Packets::Responses::NOT_HOST});
             }
             else

@@ -12,21 +12,21 @@ namespace Cardsity::Packets::Responses
         std::map<std::uint32_t, GameObjects::WhiteCard> hand; // Gets converted to vector
     };
 
-    struct ChatMessage
+    struct ChatMessage // Implemented!
     {
         std::string text;
         GameObjects::Player sender;
     };
 
-    struct PlayerLeave
+    struct PlayerLeave // Implemented!
     {
-        GameObjects::Player player;                    // The player who left.
-        std::map<con, GameObjects::Player> allPlayers; // Gets converted to vector
+        GameObjects::Player player;                       // The player who left.
+        std::map<rawcon, GameObjects::Player> allPlayers; // Gets converted to vector
     };
-    struct PlayerJoin
+    struct PlayerJoin // Implemented!
     {
-        GameObjects::Player player;                    // The player who joined.
-        std::map<con, GameObjects::Player> allPlayers; // Gets converted to vector
+        GameObjects::Player player;                       // The player who joined.
+        std::map<rawcon, GameObjects::Player> allPlayers; // Gets converted to vector
     };
     struct SettingsChange
     {
@@ -42,7 +42,7 @@ namespace Cardsity::Packets::Responses
         UNDEFINED,
         KICKED,
     };
-    struct Disconnect
+    struct Disconnect // Implemented!
     {
         DisconnectReason reason;
     };
@@ -57,7 +57,7 @@ namespace Cardsity::Packets::Responses
         std::vector<ConcealedCardStack> playedCards;
     };
 
-    struct GameEnd
+    struct GameEnd // Implemented!
     {
         GameObjects::Player winner;
         std::vector<GameObjects::RoundResult> history;
@@ -82,7 +82,7 @@ REGISTER
         .property(&PlayerLeave::player, "player")
         .property(
             &PlayerLeave::allPlayers, "allPlayers",
-            [](const std::map<con, Player> &players) {
+            [](const std::map<rawcon, Player> &players) {
                 std::vector<Player> rtn;
                 for (auto &player : players)
                 {
@@ -95,7 +95,7 @@ REGISTER
         .property(&PlayerJoin::player, "player")
         .property(
             &PlayerJoin::allPlayers, "allPlayers",
-            [](const std::map<con, Player> &players) {
+            [](const std::map<rawcon, Player> &players) {
                 std::vector<Player> rtn;
                 for (auto &player : players)
                 {

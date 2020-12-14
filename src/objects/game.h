@@ -133,7 +133,7 @@ namespace Cardsity::GameObjects
         std::uint64_t id;
         GameSettings settings;
         std::string lobbyName;
-        std::map<con, Player> players;
+        std::map<rawcon, Player> players;
 
         void start(con);
         void onTick(std::uint64_t);
